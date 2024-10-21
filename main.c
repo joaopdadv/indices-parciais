@@ -5,7 +5,9 @@
 // blocos com tamanho de 10000 registros (para arq. indices)
 #define BLOCK_SIZE 10000
 #define PROD_FILE_NAME "sorted_products.bin"
+#define PROD_IDINDEX_FILE_NAME "index_products.bin"
 #define EVENT_FILE_NAME "sorted_events.bin"
+#define EVENT_IDINDEX_FILE_NAME "index_events.bin"
 #define ORIGINAL_FILE_NAME "reducedData.csv"
 
 // ordenado por id
@@ -31,8 +33,9 @@ typedef struct Event
 
 typedef struct
 {
-    int id;
-    int itemID;
+    int block;
+    int itemKey;
+    int position;
 } Index;
 
 char *strsep(char **stringp, const char *delim)
@@ -77,7 +80,7 @@ int countNumLines(char *name)
 // INICIO PRODUTOS
 //----------------------------------
 
-// Função de comparação para ordenar os produtos pelo id
+// Funcaoo de comparacao para ordenar os produtos pelo id
 int compareProducts(const void *a, const void *b)
 {
     Product *prodA = (Product *)a;
@@ -92,11 +95,11 @@ int createTemporaryProductFiles(char *filename)
     char line[250];
     if (file == NULL)
     {
-        perror("Nao foi possível abrir o arquivo");
+        perror("Nao foi possivel abrir o arquivo");
         return -1;
     }
 
-    // Cabe�alho
+    // Cabecaalho
     fgets(line, sizeof(line), file);
 
     int i = 0;
@@ -105,7 +108,7 @@ int createTemporaryProductFiles(char *filename)
     Product *products = (Product *)malloc(sizeof(Product) * BLOCK_SIZE);
     if (products == NULL)
     {
-        perror("Erro ao realocar memória para produtos");
+        perror("Erro ao realocar memoria para produtos");
         fclose(file);
         return -1;
     }
@@ -129,14 +132,14 @@ int createTemporaryProductFiles(char *filename)
                 break;
             case 3: // Categoria ID
                 strncpy(products[b].category_id, token, sizeof(products[b].category_id) - 1);
-                products[b].category_id[sizeof(products[b].category_id) - 1] = '\0'; // Null-terminate
+                products[b].category_id[sizeof(products[b].category_id) - 1] = '\0';
 
                 // antes era:
                 // strcpy(products[b].category_id, token);
                 break;
-            case 4: // Código da Categoria
+            case 4: // Codigo da Categoria
                 strncpy(products[b].category_code, token, sizeof(products[b].category_code) - 1);
-                products[b].category_code[sizeof(products[b].category_code) - 1] = '\0'; // Null-terminate
+                products[b].category_code[sizeof(products[b].category_code) - 1] = '\0';
 
                 // antes era:
                 // if (token[0] == '\0')
@@ -164,7 +167,7 @@ int createTemporaryProductFiles(char *filename)
                 // }
 
                 break;
-            case 6: // Preço
+            case 6: // Preco
                 if (token != NULL && strlen(token) > 0)
                 {
                     products[b].price = strtod(token, NULL); // Converte string para float
@@ -238,7 +241,7 @@ int createTemporaryProductFiles(char *filename)
 
         if (written != b)
         {
-            printf("Erro ao escrever no arquivo temporário. Esperado: %d, Escrito: %zu\n", b, written);
+            printf("Erro ao escrever no arquivo temporario. Esperado: %d, Escrito: %zu\n", b, written);
         }
         else
         {
@@ -335,7 +338,7 @@ void printProductsFromFile(char *filename)
     Product product;
     size_t readCount;
 
-    // L� os produtos do arquivo e imprime suas informa��es
+    // L� os produtos do arquivo e imprime suas informacoes
     while ((readCount = fread(&product, sizeof(Product), 1, file)) == 1)
     {
         printf("ID: %d\n", product.id);
@@ -354,9 +357,73 @@ void printProductsFromFile(char *filename)
     fclose(file);
 }
 
+void createProductsIndexFile(char *filename)
+{
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL)
+    {
+        perror("Nao foi possivel abrir o arquivo de produtos");
+        return;
+    }
+
+    FILE *indexFile = fopen("index_products.bin", "w+b");
+    if (indexFile == NULL)
+    {
+        perror("Nao foi possivel criar o arquivo de indices de produtos");
+        return;
+    }
+
+    Product *product = (Product *)malloc(sizeof(Product));
+    Index *i = (Index *)malloc(sizeof(Index));
+
+    int block = 0;
+    int totalProducts = 0;
+    int indexCount = 0; // Para controlar a cada quantos IDs o indice sera criado
+
+    while (fread(product, sizeof(Product), 1, file) == 1)
+    {
+        if (indexCount == BLOCK_SIZE)
+        {
+            i->position = totalProducts;
+            i->block = block++;
+            i->itemKey = product->id;
+
+            fwrite(i, sizeof(Index), 1, indexFile);
+            indexCount = 0;
+        }
+
+        indexCount++;
+        totalProducts++;
+    }
+
+    // Cria o indice para o ultimo bloco de produto
+    
+    if (indexCount > 0)
+    {	    	
+	    i->block = block++;
+	    i->itemKey = product->id;
+        i->position = totalProducts;
+	    fwrite(i, sizeof(Index), 1, indexFile);
+	}
+    
+
+    printf("Total de blocos de indices criados (produtos): %d\n", block);
+
+    fclose(file);
+    fclose(indexFile);
+    free(product);
+    free(i);
+}
+
 //----------------------------------
 // FINAL PRODUTOS
 //----------------------------------
+
+
+//----------------------------------
+// INICIO EVENTOS
+//----------------------------------
+
 
 // retorna o sucesso ou falha
 int createEventFile(char *filename)
@@ -451,65 +518,8 @@ void printEventsFromFile(char *filename)
     fclose(file);
 }
 
-void printMenu()
-{
-    printf("---------------- MENU ----------------\n\n");
-    printf("1 -> Gerar arquivos de dados\n");
-    printf("2 -> Gerar arquivos de indice (chave)\n");
-    printf("0 -> Sair\n");
-    printf("Opcao: ");
-}
 
-void createProductsIndexFile(char *filename, int interval)
-{
-    FILE *file = fopen(filename, "rb");
-    if (file == NULL)
-    {
-        perror("Nao foi possivel abrir o arquivo de produtos");
-        return;
-    }
-
-    FILE *indexFile = fopen("index_products.bin", "w+b");
-    if (indexFile == NULL)
-    {
-        perror("Nao foi possivel criar o arquivo de indices de produtos");
-        return;
-    }
-
-    Product *product = (Product *)malloc(sizeof(Product));
-    Index *i = (Index *)malloc(sizeof(Index));
-
-    int count = 0;
-    int indexCount = interval; // Para controlar a cada quantos IDs o índice será criado
-
-    while (fread(product, sizeof(Product), 1, file) == 1)
-    {
-        if (indexCount == interval)
-        {
-            i->id = count++;
-            i->itemID = product->id;
-
-            fwrite(i, sizeof(Index), 1, indexFile);
-            indexCount = 0;
-        }
-
-        indexCount++;
-    }
-
-    // Cria o índice para o último produto
-    i->id = count++;
-    i->itemID = product->id;
-    fwrite(i, sizeof(Index), 1, indexFile);
-
-    printf("Total de índices criados: %d\n", count);
-
-    fclose(file);
-    fclose(indexFile);
-    free(product);
-    free(i);
-}
-
-void createEventsIndexFile(char *filename, int interval)
+void createEventsIndexFile(char *filename)
 {
     FILE *file = fopen(filename, "rb");
     if (file == NULL)
@@ -528,29 +538,36 @@ void createEventsIndexFile(char *filename, int interval)
     Event *event = (Event *)malloc(sizeof(Event));
     Index *i = (Index *)malloc(sizeof(Index));
 
-    int count = 0;
-    int indexCount = interval; // Para controlar a cada quantos IDs o índice será criado
+    int block = 0;
+    int totalEvents = 0;
+    int indexCount = 0; // Para controlar a cada quantos IDs o inndice sera criado
 
     while (fread(event, sizeof(Event), 1, file) == 1)
     {
-        if (indexCount == interval)
+        if (indexCount == BLOCK_SIZE)
         {
-            i->id = count++;
-            i->itemID = event->id;
+            i->block = block++;
+            i->itemKey = event->id;
+        	i->position = totalEvents;
 
             fwrite(i, sizeof(Index), 1, indexFile);
             indexCount = 0;
         }
 
         indexCount++;
+        totalEvents++;
     }
 
-    // Cria o índice para o último evento
-    i->id = count++;
-    i->itemID = event->id;
-    fwrite(i, sizeof(Index), 1, indexFile);
-
-    printf("Total de índices criados: %d\n", count);
+    // Cria o indice para o ultimo bloco de evento
+    if (indexCount > 0)
+    {
+	    i->block = block++;
+	    i->itemKey = event->id;
+	    i->position = totalEvents;
+	    fwrite(i, sizeof(Index), 1, indexFile);
+	}
+	
+    printf("Total de blocos de indices criados (eventos): %d\n", block);
 
     fclose(file);
     fclose(indexFile);
@@ -570,11 +587,12 @@ void printIndexFile(char *filename)
     Index index;
     size_t readCount;
 
-    // Lê os índices do arquivo e imprime suas informações
+    // Le os indices do arquivo e imprime suas informacoes
     while ((readCount = fread(&index, sizeof(Index), 1, file)) == 1)
     {
-        printf("ID: %d\n", index.id);
-        printf("Item ID: %d\n", index.itemID);
+        printf("Bloco: %d\n", index.block);
+        printf("Item ID: %d\n", index.itemKey);
+        printf("Position: %d\n", index.position);
         printf("------------------------------\n");
     }
 
@@ -584,6 +602,20 @@ void printIndexFile(char *filename)
     }
 
     fclose(file);
+}
+
+
+//----------------------------------
+// FINAL EVENTOS
+//----------------------------------
+
+void printMenu()
+{
+    printf("---------------- MENU ----------------\n\n");
+    printf("1 -> Gerar arquivos de dados\n");
+    printf("2 -> Gerar arquivos de indice (chave)\n");
+    printf("0 -> Sair\n");
+    printf("Opcao: ");
 }
 
 int main()
@@ -615,10 +647,10 @@ int main()
             break;
         case 2:
 
-            createProductsIndexFile(PROD_FILE_NAME, 150);
-            createEventsIndexFile(EVENT_FILE_NAME, 100);
-            // printIndexFile("index_products.bin");
-            printIndexFile("index_events.bin");
+            createProductsIndexFile(PROD_FILE_NAME);
+            printIndexFile(PROD_IDINDEX_FILE_NAME);
+            createEventsIndexFile(EVENT_FILE_NAME);
+            printIndexFile(EVENT_IDINDEX_FILE_NAME);
 
             break;
         }
