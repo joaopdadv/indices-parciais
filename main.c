@@ -5,6 +5,7 @@
 // blocos com tamanho de 10000 registros (para arq. indices)
 #define BLOCK_SIZE 10000
 #define PROD_FILE_NAME "sorted_products.bin"
+#define EVENT_FILE_NAME "sorted_events.bin"
 #define ORIGINAL_FILE_NAME "reducedData.csv"
 
 // ordenado por id
@@ -58,6 +59,10 @@ int countNumLines(char *name) {
     return i;
 }
 
+//----------------------------------
+//INICIO PRODUTOS
+//----------------------------------
+
 // Função de comparação para ordenar os produtos pelo id
 int compareProducts(const void *a, const void *b) {
     Product *prodA = (Product *)a;
@@ -66,11 +71,8 @@ int compareProducts(const void *a, const void *b) {
 }
 
 //retorna o numero de blocos
-int createTemporaryProductFiles(char *name) {
-    // -1 (cabeçalho)
-    int numLinesOrigFile = countNumLines(name) - 1;
-
-    FILE *file = fopen(name, "r");
+int createTemporaryProductFiles(char *filename) {
+    FILE *file = fopen(filename, "r");
     char line[250];
     if (file == NULL) {
         perror("Nao foi possível abrir o arquivo");
@@ -142,7 +144,7 @@ int createTemporaryProductFiles(char *name) {
             
             // Cria um arquivo temporário para o bloco
             char tempFileName[20];
-            sprintf(tempFileName, "temp_block_%d.bin", blockNumber);
+            sprintf(tempFileName, "temp_p_block_%d.bin", blockNumber);
             FILE *tempFile = fopen(tempFileName, "wb");
             if (tempFile == NULL) {
                 perror("Erro ao criar arquivo temporário");
@@ -171,7 +173,7 @@ int createTemporaryProductFiles(char *name) {
         qsort(products, b, sizeof(Product), compareProducts);
         
         char tempFileName[20];
-        sprintf(tempFileName, "temp_block_%d.bin", blockNumber);
+        sprintf(tempFileName, "temp_p_block_%d.bin", blockNumber);
         FILE *tempFile = fopen(tempFileName, "wb");
         if (tempFile == NULL) {
             perror("Erro ao criar arquivo temporário");
@@ -211,7 +213,7 @@ int mergeSortedBlocks(int numBlocks) {
     // Abre todos os arquivos temporários
     for (i = 0; i < numBlocks; i++) {
         char tempFileName[20];
-        sprintf(tempFileName, "temp_block_%d.bin", i);
+        sprintf(tempFileName, "temp_p_block_%d.bin", i);
         tempFiles[i] = fopen(tempFileName, "rb");
         if (tempFiles[i] != NULL) {
             if (fread(&currentProducts[i], sizeof(Product), 1, tempFiles[i]) == 1) {
@@ -242,7 +244,7 @@ int mergeSortedBlocks(int numBlocks) {
                 firstWrite = 0;
             }
 
-            // Carregaa o próximo produto do arquivo temporário selecionado
+            // Carrega o próximo produto do arquivo temporário selecionado
             if (fread(&currentProducts[minIndex], sizeof(Product), 1, tempFiles[minIndex]) != 1) {
                 fclose(tempFiles[minIndex]);
                 tempFiles[minIndex] = NULL; // Fecha o arquivo e marcar como inativo
@@ -256,15 +258,7 @@ int mergeSortedBlocks(int numBlocks) {
     return 0;
 }
 
-void printMenu(){
-	printf("---------------- MENU ----------------\n\n");
-	printf("1 -> Gerar arquivos de dados\n");
-	printf("2 -> Gerar arquivos de indice (chave)\n");
-	printf("0 -> Sair\n");
-	printf("Opcao: ");
-}
-
-void printProductsFromFile(const char *filename) {
+void printProductsFromFile(char *filename) {
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
         perror("Erro ao abrir o arquivo");
@@ -291,6 +285,102 @@ void printProductsFromFile(const char *filename) {
     fclose(file);
 }
 
+//----------------------------------
+//FINAL PRODUTOS
+//----------------------------------
+
+//retorna o sucesso ou falha
+int createEventFile(char *filename) {
+    FILE *file = fopen(filename, "r");
+    FILE *fileEvents = fopen(EVENT_FILE_NAME, "wb");
+    char line[250];
+    if (file == NULL || fileEvents == NULL) {
+        perror("Nao foi possivel abrir o arquivo");
+        return 0;
+    }
+
+    // Cabeçalho
+    fgets(line, sizeof(line), file);
+    
+    int i = 0;
+    int blockNumber = 0;
+    
+    Event event;
+    
+    while (fgets(line, sizeof(line), file) != NULL) {		
+        line[strcspn(line, "\n")] = '\0';
+
+		char *token;
+		char *rest = line;
+		int j = 0;
+		
+		while ((token = strsep(&rest, ",")) != NULL) {
+		    switch (j) {
+		        case 1: // Tipo do Evento
+		        	strcpy(event.event_type, token);
+		            break;
+		        case 2: // ID do Produto
+		            event.product_id = atoi(token);
+		            break;
+		        case 7: // ID do usuario
+		            event.user_id = atoi(token);
+		            break;		        
+		    }
+		    j++;
+        }
+        
+        event.id = i + 1; 	
+		       
+        fwrite(&event, sizeof(Event), 1, fileEvents);
+        
+        i++;
+    }
+      
+    fclose(file);
+    fclose(fileEvents);
+    
+    return 1; // Retorna sucesso
+}
+
+
+void printEventsFromFile(char *filename) {
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        perror("Erro ao abrir o arquivo");
+        return;
+    }
+    
+    Event event;
+    size_t readCount;
+
+    // Lê os produtos do arquivo e imprime suas informações
+    while ((readCount = fread(&event, sizeof(Event), 1, file)) == 1) {
+    	
+        printf("ID: %d\n", event.id);
+        printf("Event_type: %s\n", event.event_type);
+        printf("Product ID: %d\n", event.product_id);
+        printf("User ID: %d\n", event.user_id);
+        printf("------------------------------\n");
+    }
+
+    if (readCount != 0) {
+        perror("Erro ao ler o arquivo");
+    }
+
+    fclose(file);
+}
+
+
+
+
+void printMenu(){
+	printf("---------------- MENU ----------------\n\n");
+	printf("1 -> Gerar arquivos de dados\n");
+	printf("2 -> Gerar arquivos de indice (chave)\n");
+	printf("0 -> Sair\n");
+	printf("Opcao: ");
+}
+
 int main(){
 	int opc = 0;
 	int numBlocks = 0;
@@ -304,11 +394,13 @@ int main(){
 				numBlocks = createTemporaryProductFiles(ORIGINAL_FILE_NAME);
 			    if (numBlocks > 0) {
 			        mergeSortedBlocks(numBlocks);
-			        printf("Ordenacao completa e arquivo final gerado.\n");
+			        printf("Ordenacao completa e arquivo de produtos gerado.\n");
 			    } else {
-			        printf("Nenhum bloco foi criado.\n");
+			        printf("Nenhum bloco de produtos foi criado.\n");
 			    }
 			    //printProductsFromFile(PROD_FILE_NAME);
+			    createEventFile(ORIGINAL_FILE_NAME);
+			    //printEventsFromFile(EVENT_FILE_NAME);
 				break;
 			case 2:
 				
