@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 // blocos com tamanho de 10000 registros (para arq. indices)
-#define BLOCK_SIZE 10000
+#define BLOCK_SIZE 100
 #define PROD_FILE_NAME "sorted_products.bin"
 #define PROD_IDINDEX_FILE_NAME "index_products.bin"
 #define EVENT_FILE_NAME "sorted_events.bin"
@@ -397,15 +397,14 @@ void createProductsIndexFile(char *filename)
     }
 
     // Cria o indice para o ultimo bloco de produto
-    
+
     if (indexCount > 0)
-    {	    	
-	    i->block = block++;
-	    i->itemKey = product->id;
+    {
+        i->block = block++;
+        i->itemKey = product->id;
         i->position = totalProducts;
-	    fwrite(i, sizeof(Index), 1, indexFile);
-	}
-    
+        fwrite(i, sizeof(Index), 1, indexFile);
+    }
 
     printf("Total de blocos de indices criados (produtos): %d\n", block);
 
@@ -419,11 +418,9 @@ void createProductsIndexFile(char *filename)
 // FINAL PRODUTOS
 //----------------------------------
 
-
 //----------------------------------
 // INICIO EVENTOS
 //----------------------------------
-
 
 // retorna o sucesso ou falha
 int createEventFile(char *filename)
@@ -518,7 +515,6 @@ void printEventsFromFile(char *filename)
     fclose(file);
 }
 
-
 void createEventsIndexFile(char *filename)
 {
     FILE *file = fopen(filename, "rb");
@@ -548,7 +544,7 @@ void createEventsIndexFile(char *filename)
         {
             i->block = block++;
             i->itemKey = event->id;
-        	i->position = totalEvents;
+            i->position = totalEvents;
 
             fwrite(i, sizeof(Index), 1, indexFile);
             indexCount = 0;
@@ -561,12 +557,12 @@ void createEventsIndexFile(char *filename)
     // Cria o indice para o ultimo bloco de evento
     if (indexCount > 0)
     {
-	    i->block = block++;
-	    i->itemKey = event->id;
-	    i->position = totalEvents;
-	    fwrite(i, sizeof(Index), 1, indexFile);
-	}
-	
+        i->block = block++;
+        i->itemKey = event->id;
+        i->position = totalEvents;
+        fwrite(i, sizeof(Index), 1, indexFile);
+    }
+
     printf("Total de blocos de indices criados (eventos): %d\n", block);
 
     fclose(file);
@@ -604,6 +600,115 @@ void printIndexFile(char *filename)
     fclose(file);
 }
 
+int binarySearchIndexProducts(int id)
+{
+    FILE *indexFile = fopen(PROD_IDINDEX_FILE_NAME, "rb");
+    if (indexFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de indices");
+        return 0;
+    }
+
+    FILE *productFile = fopen(PROD_FILE_NAME, "rb");
+    if (productFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de produtos");
+        return 0;
+    }
+
+    int left = 0;
+    fseek(indexFile, 0, SEEK_END);
+    int right = ftell(indexFile) / sizeof(Index) - 1;
+    int found = 0;
+    Index index;
+
+    while (left <= right && !found)
+    {
+        int mid = (left + right) / 2;
+
+        fseek(indexFile, mid * sizeof(Index), SEEK_SET);
+        fread(&index, sizeof(Index), 1, indexFile);
+
+        // print index itemKey e id
+        // printf("Item ID: %d, id: %d\n", index.itemKey, id);
+
+        if (index.itemKey == id)
+        {
+            printf("Bloco: %d\n", index.block);
+            printf("Item ID: %d\n", index.itemKey);
+            printf("Position: %d\n", index.position);
+            found = 1;
+        }
+        else if (index.itemKey > id)
+        {
+            // ler o anterior, se key for menor que id, entao eh o bloco que eu quero
+            Index prevIndex;
+            fseek(indexFile, (mid - 1) * sizeof(Index), SEEK_SET);
+            fread(&prevIndex, sizeof(Index), 1, indexFile);
+
+            if (prevIndex.itemKey < id)
+            {
+                printf("Bloco: %d\n", index.block);
+                printf("Item ID: %d\n", index.itemKey);
+                printf("Position: %d\n", index.position);
+                found = 1;
+            }
+            else
+            {
+                right = mid - 1;
+            }
+        }
+        else if (index.itemKey < id)
+        {
+            left = mid + 1;
+        }
+    }
+
+    // quando encontrar o registro, ler o bloco (ir para o arquivo na posicao index.position - BLOCK_SIZE) e fazer a busca sequencial no arquivo normal até index.position
+    if (!found)
+    {
+        return 0;
+    }
+
+    printf("------------------------------\n");
+
+    right = index.position;
+    left = index.position - BLOCK_SIZE;
+    Product product;
+
+    // printf("left: %d, right: %d\n", left, right);
+
+    while (left <= right)
+    {
+        int mid = (left + right) / 2;
+        fseek(productFile, mid * sizeof(Product), SEEK_SET);
+
+        fread(&product, sizeof(Product), 1, productFile);
+
+        if (product.id == id)
+        {
+            printf("ID: %d\n", product.id);
+            printf("Price: %.2f\n", product.price);
+            printf("Brand: %s\n", product.brand);
+            printf("Category ID: %s\n", product.category_id);
+            printf("Category Code: %s\n", product.category_code);
+            return 1;
+        }
+        else if (product.id > id)
+        {
+            right = mid - 1;
+        }
+        else if (product.id < id)
+        {
+            left = mid + 1;
+        }
+    }
+
+    fclose(indexFile);
+    fclose(productFile);
+
+    return 0;
+}
 
 //----------------------------------
 // FINAL EVENTOS
@@ -614,6 +719,7 @@ void printMenu()
     printf("---------------- MENU ----------------\n\n");
     printf("1 -> Gerar arquivos de dados\n");
     printf("2 -> Gerar arquivos de indice (chave)\n");
+    printf("3 -> Pesquisa binária por ID em produtos\n");
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -650,8 +756,15 @@ int main()
             createProductsIndexFile(PROD_FILE_NAME);
             printIndexFile(PROD_IDINDEX_FILE_NAME);
             createEventsIndexFile(EVENT_FILE_NAME);
-            printIndexFile(EVENT_IDINDEX_FILE_NAME);
+            // printIndexFile(EVENT_IDINDEX_FILE_NAME);
 
+            break;
+        case 3:
+            // int id;
+            // printf("Digite o ID do produto: ");
+            // scanf("%d", &id);
+            // binarySearchIndexProducts(id);
+            binarySearchIndexProducts(50600085); // 50600085 como exemplo
             break;
         }
 
