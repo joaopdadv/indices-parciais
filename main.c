@@ -43,8 +43,8 @@ typedef struct
 
 typedef struct
 {
-    float price;
     int position;
+    float price;
 } PriceIndex;
 
 typedef struct
@@ -1260,6 +1260,82 @@ int binarySearchIndexEvents(int id)
     return 0;
 }
 
+
+int binarySearchUserIDEvents(int user_id)
+{
+    FILE *indexFile = fopen(EVENT_USER_INDEX_FILE_NAME, "rb");
+    if (indexFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de indices");
+        return 0;
+    }
+
+    FILE *eventsFile = fopen(EVENT_FILE_NAME, "rb");
+    if (eventsFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de eventos");
+        return 0;
+    }
+
+    int left = 0;
+    fseek(indexFile, 0, SEEK_END);
+    int right = ftell(indexFile) / sizeof(UserIDIndex) - 1;
+    int found = 0;
+    UserIDIndex index;
+
+    while (left <= right && !found)
+    {
+        int mid = (left + right) / 2;
+
+        fseek(indexFile, mid * sizeof(UserIDIndex), SEEK_SET);
+        fread(&index, sizeof(UserIDIndex), 1, indexFile);
+
+        // print index itemKey e id
+        // printf("Item ID: %d, id: %d\n", index.itemKey, id);
+
+        if (index.user_id == user_id)
+        {
+            printf("User ID: %d\n", index.user_id);
+            printf("Position: %d\n", index.position);
+            found = 1;
+        }
+        else if (index.user_id > user_id)
+        {           
+            right = mid - 1;
+        }
+        else if (index.user_id < user_id)
+        {
+            left = mid + 1;
+        }
+    }
+
+    // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
+    if (!found)
+    {
+	    fclose(indexFile);
+	    fclose(eventsFile);
+        return 0;
+    }
+
+    printf("------------------------------\n");
+    
+    Event event;
+	fseek(eventsFile, index.position * sizeof(Event), SEEK_SET);
+
+    fread(&event, sizeof(Event), 1, eventsFile);
+
+    printf("ID: %d\n", event.id);
+    printf("Type: %s\n", event.event_type);
+    printf("Product ID: %d\n", event.product_id);
+    printf("User ID: %d\n", event.user_id);
+    
+    fclose(indexFile);
+    fclose(eventsFile);
+    
+    return 1;
+
+}
+
 //----------------------------------
 // FINAL EVENTOS
 //----------------------------------
@@ -1282,7 +1358,9 @@ int main()
 {
     int opc = 0;
     int numBlocks = 0;
-
+    int idSearch = 0;
+	float priceSearch;
+    
     do
     {
         printMenu();
@@ -1335,25 +1413,28 @@ int main()
 		    
         	break;
         case 4:
-            // int id;
             // printf("Digite o ID do produto: ");
-            // scanf("%d", &id);
-            // binarySearchIndexProducts(id);
+            // scanf("%d", &idSearch);
+            // binarySearchIndexProducts(idSearch);
             binarySearchIndexProducts(50600085); // 50600085 como exemplo
             break;
         case 5:
-            // int id;
             // printf("Digite o ID do evento: ");
-            // scanf("%d", &id);
-            // binarySearchIndexEvents(id);
+            // scanf("%d", &idSearch);
+            // binarySearchIndexEvents(idSearch);
             binarySearchIndexEvents(1205); // 1205 como exemplo
             break;
         case 6:
-            // float price;
             // printf("Digite o preco do produto: ");
-            // scanf("%f", &price);
-            // binarySearchPriceProducts(price);
+            // scanf("%f", &priceSearch);
+            // binarySearchPriceProducts(priceSearch);
         	binarySearchPriceProducts(5.77); // 5.77 como exemplo
+        	break;
+        case 7:
+            // printf("Digite o ID do usuario: ");
+            // scanf("%d", &idSearch);
+            // binarySearchUserIDEvents(idSearch);
+        	binarySearchUserIDEvents(518085591); // 518085591 como exemplo
         	break;
         }
 
