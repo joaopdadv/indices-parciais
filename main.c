@@ -714,6 +714,83 @@ int binarySearchIndexProducts(int id)
 }
 
 
+int binarySearchPriceProducts(float price)
+{
+    FILE *indexFile = fopen(PROD_PRICE_INDEX_FILE_NAME, "rb");
+    if (indexFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de indices");
+        return 0;
+    }
+
+    FILE *productFile = fopen(PROD_FILE_NAME, "rb");
+    if (productFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de produtos");
+        return 0;
+    }
+
+    int left = 0;
+    fseek(indexFile, 0, SEEK_END);
+    int right = ftell(indexFile) / sizeof(PriceIndex) - 1;
+    int found = 0;
+    PriceIndex index;
+
+    while (left <= right && !found)
+    {
+        int mid = (left + right) / 2;
+
+        fseek(indexFile, mid * sizeof(PriceIndex), SEEK_SET);
+        fread(&index, sizeof(PriceIndex), 1, indexFile);
+
+        // print index itemKey e id
+        // printf("Item ID: %d, id: %d\n", index.itemKey, id);
+
+        if (index.price == price)
+        {
+            printf("Price: %.2f\n", index.price);
+            printf("Position: %d\n", index.position);
+            found = 1;
+        }
+        else if (index.price > price)
+        {           
+            right = mid - 1;
+        }
+        else if (index.price < price)
+        {
+            left = mid + 1;
+        }
+    }
+
+    // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
+    if (!found)
+    {
+	    fclose(indexFile);
+	    fclose(productFile);
+        return 0;
+    }
+
+    printf("------------------------------\n");
+    
+    Product product;
+	fseek(productFile, index.position * sizeof(Product), SEEK_SET);
+
+    fread(&product, sizeof(Product), 1, productFile);
+
+    printf("ID: %d\n", product.id);
+    printf("Price: %.2f\n", product.price);
+    printf("Brand: %s\n", product.brand);
+    printf("Category ID: %s\n", product.category_id);
+    printf("Category Code: %s\n", product.category_code);
+    
+    fclose(indexFile);
+    fclose(productFile);
+    
+    return 1;
+
+}
+
+
 
 //----------------------------------
 // FINAL PRODUTOS
@@ -1195,6 +1272,8 @@ void printMenu()
     printf("3 -> Gerar arquivos de indice (produto -> por preco, evento -> por user_id)\n");
     printf("4 -> Pesquisa binaria por ID em produtos\n");
     printf("5 -> Pesquisa binaria por ID em eventos\n");
+    printf("6 -> Pesquisa binaria por preco em produtos\n");
+    printf("7 -> Pesquisa binaria por user_id em eventos\n");
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -1269,6 +1348,13 @@ int main()
             // binarySearchIndexEvents(id);
             binarySearchIndexEvents(1205); // 1205 como exemplo
             break;
+        case 6:
+            // float price;
+            // printf("Digite o preco do produto: ");
+            // scanf("%f", &price);
+            // binarySearchPriceProducts(price);
+        	binarySearchPriceProducts(5.77); // 5.77 como exemplo
+        	break;
         }
 
     } while (opc != 0);
