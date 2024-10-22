@@ -1074,17 +1074,127 @@ void printUserIDIndexFromFile(char *indexFilename)
 }
 
 
+int binarySearchIndexEvents(int id)
+{
+    FILE *indexFile = fopen(EVENT_IDINDEX_FILE_NAME, "rb");
+    if (indexFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de indices");
+        return 0;
+    }
+
+    FILE *eventsFile = fopen(EVENT_FILE_NAME, "rb");
+    if (eventsFile == NULL)
+    {
+        perror("Erro ao abrir o arquivo de produtos");
+        return 0;
+    }
+
+    int left = 0;
+    fseek(indexFile, 0, SEEK_END);
+    int right = ftell(indexFile) / sizeof(BlockIndex) - 1;
+    int found = 0;
+    BlockIndex index;
+
+    while (left <= right && !found)
+    {
+        int mid = (left + right) / 2;
+
+        fseek(indexFile, mid * sizeof(BlockIndex), SEEK_SET);
+        fread(&index, sizeof(BlockIndex), 1, indexFile);
+
+        // print index itemKey e id
+        // printf("Item ID: %d, id: %d\n", index.itemKey, id);
+
+        if (index.itemKey == id)
+        {
+            printf("Bloco: %d\n", index.block);
+            printf("Item ID: %d\n", index.itemKey);
+            printf("Position: %d\n", index.position);
+            found = 1;
+        }
+        else if (index.itemKey > id)
+        {
+            // ler o anterior, se key for menor que id, entao eh o bloco que eu quero
+            BlockIndex prevIndex;
+            fseek(indexFile, (mid - 1) * sizeof(BlockIndex), SEEK_SET);
+            fread(&prevIndex, sizeof(BlockIndex), 1, indexFile);
+
+            if (prevIndex.itemKey < id)
+            {
+                printf("Bloco: %d\n", index.block);
+                printf("Item ID: %d\n", index.itemKey);
+                printf("Position: %d\n", index.position);
+                found = 1;
+            }
+            else
+            {
+                right = mid - 1;
+            }
+        }
+        else if (index.itemKey < id)
+        {
+            left = mid + 1;
+        }
+    }
+
+    // quando encontrar o registro, ler o bloco (ir para o arquivo na posicao index.position - BLOCK_SIZE) e fazer a busca sequencial no arquivo normal ate index.position
+    if (!found)
+    {
+        return 0;
+    }
+
+    printf("------------------------------\n");
+
+    right = index.position;
+    left = index.position - BLOCK_SIZE;
+    Event event;
+
+    // printf("left: %d, right: %d\n", left, right);
+
+    while (left <= right)
+    {
+        int mid = (left + right) / 2;
+        fseek(eventsFile, mid * sizeof(Event), SEEK_SET);
+
+        fread(&event, sizeof(Event), 1, eventsFile);
+
+        if (event.id == id)
+        {
+            printf("ID: %d\n", event.id);
+            printf("Type: %s\n", event.event_type);
+            printf("Product ID: %d\n", event.product_id);
+            printf("User ID: %d\n", event.user_id);
+            return 1;
+        }
+        else if (event.id > id)
+        {
+            right = mid - 1;
+        }
+        else if (event.id < id)
+        {
+            left = mid + 1;
+        }
+    }
+
+    fclose(indexFile);
+    fclose(eventsFile);
+
+    return 0;
+}
+
 //----------------------------------
 // FINAL EVENTOS
 //----------------------------------
 
 void printMenu()
 {
-    printf("---------------- MENU ----------------\n\n");
+    printf("---------------- MENU ----------------\n");
     printf("1 -> Gerar arquivos de dados\n");
     printf("2 -> Gerar arquivos de indice (chave)\n");
     printf("3 -> Gerar arquivos de indice (produto -> por preco, evento -> por user_id)\n");
     printf("4 -> Pesquisa binaria por ID em produtos\n");
+    printf("5 -> Pesquisa binaria por ID em eventos\n");
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -1151,6 +1261,13 @@ int main()
             // scanf("%d", &id);
             // binarySearchIndexProducts(id);
             binarySearchIndexProducts(50600085); // 50600085 como exemplo
+            break;
+        case 5:
+            // int id;
+            // printf("Digite o ID do evento: ");
+            // scanf("%d", &id);
+            // binarySearchIndexEvents(id);
+            binarySearchIndexEvents(1205); // 1205 como exemplo
             break;
         }
 
