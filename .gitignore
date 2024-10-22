@@ -4,3 +4,5 @@ sorted*
 temp*
 index*
 /.idea
+main.exe
+*.bin
