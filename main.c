@@ -40,7 +40,6 @@ typedef struct
     int position;
 } BlockIndex;
 
-
 typedef struct
 {
     int position;
@@ -52,7 +51,6 @@ typedef struct
     int user_id;
     int position;
 } UserIDIndex;
-
 
 char *strsep(char **stringp, const char *delim)
 {
@@ -430,27 +428,33 @@ void createProductsIndexFile(char *filename)
     free(i);
 }
 
-int comparePrice(const void *a, const void *b) {
+int comparePrice(const void *a, const void *b)
+{
     PriceIndex *indexA = (PriceIndex *)a;
     PriceIndex *indexB = (PriceIndex *)b;
 
-    if (indexA->price < indexB->price) return -1;
-    if (indexA->price > indexB->price) return 1;
+    if (indexA->price < indexB->price)
+        return -1;
+    if (indexA->price > indexB->price)
+        return 1;
     return 0;
 }
 
-// Funcao para criar os arquivos temporarios de indice baseados no preco do produto (indice exaustivo) 
+// Funcao para criar os arquivos temporarios de indice baseados no preco do produto (indice exaustivo)
 // (deve utilizar o arquivo de produtos)
-int createTemporaryPriceIndexFiles(char *filename) {
+int createTemporaryPriceIndexFiles(char *filename)
+{
     FILE *file = fopen(filename, "rb");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         perror("Nao foi possivel abrir o arquivo de produtos");
         return -1;
     }
 
     Product product;
     PriceIndex *indexArray = (PriceIndex *)malloc(sizeof(PriceIndex) * BLOCK_SIZE);
-    if (indexArray == NULL) {
+    if (indexArray == NULL)
+    {
         perror("Erro ao alocar memoria para o bloco de indices");
         fclose(file);
         return -1;
@@ -462,21 +466,24 @@ int createTemporaryPriceIndexFiles(char *filename) {
     int blockNumber = 0;
 
     // Ler o arquivo de produtos em blocos
-    while (fread(&product, sizeof(Product), 1, file) == 1) {
-        // Preencher o array de índices com o campo price e a posição
+    while (fread(&product, sizeof(Product), 1, file) == 1)
+    {
+        // Preencher o array de ï¿½ndices com o campo price e a posiï¿½ï¿½o
         indexArray[indexCount].price = product.price;
         indexArray[indexCount].position = position++;
         indexCount++;
 
-        // Quando le a quantidade definida no tamanho do bloco, gera um arquivo temporario. 
-        if (indexCount == BLOCK_SIZE) {
+        // Quando le a quantidade definida no tamanho do bloco, gera um arquivo temporario.
+        if (indexCount == BLOCK_SIZE)
+        {
             qsort(indexArray, indexCount, sizeof(PriceIndex), comparePrice);
 
             // Criar um arquivo temporario para o bloco `blockNumber`
             char tempFileName[30];
             sprintf(tempFileName, "temp_price_block_%d.bin", blockNumber);
             FILE *tempFile = fopen(tempFileName, "wb");
-            if (tempFile == NULL) {
+            if (tempFile == NULL)
+            {
                 perror("Nao foi possivel criar o arquivo temporario");
                 free(indexArray);
                 fclose(file);
@@ -488,26 +495,29 @@ int createTemporaryPriceIndexFiles(char *filename) {
             fclose(tempFile);
             blockNumber++;
             indexCount = 0; // Reinicia o contador de itens do proximo bloco
-            
+
             // desaloca e realoca o array de index.
-            free(indexArray);            
+            free(indexArray);
             indexArray = (PriceIndex *)malloc(sizeof(PriceIndex) * BLOCK_SIZE);
-		    if (indexArray == NULL) {
-		        perror("Erro ao alocar memoria para o bloco de indices");
-		        fclose(file);
-		        return -1;
-		    }
+            if (indexArray == NULL)
+            {
+                perror("Erro ao alocar memoria para o bloco de indices");
+                fclose(file);
+                return -1;
+            }
         }
     }
 
     // Escreve os remanscentes que nao completam 1 bloco
-    if (indexCount > 0) {
+    if (indexCount > 0)
+    {
         qsort(indexArray, indexCount, sizeof(PriceIndex), comparePrice);
 
         char tempFileName[30];
         sprintf(tempFileName, "temp_price_block_%d.bin", blockNumber);
         FILE *tempFile = fopen(tempFileName, "wb");
-        if (tempFile == NULL) {
+        if (tempFile == NULL)
+        {
             perror("Nao foi possivel criar o arquivo temporario");
             free(indexArray);
             fclose(file);
@@ -525,51 +535,60 @@ int createTemporaryPriceIndexFiles(char *filename) {
     return blockNumber;
 }
 
-// Função para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
+// Funï¿½ï¿½o para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
 // (abre todos os arquivos temporarios e como estes esta ordenados, le a primeira posicao de cada e vai escrevendo no arquivo final o menor indice encontrado.)
-void mergeSortedPriceBlocks(int totalBlocks) {
+void mergeSortedPriceBlocks(int totalBlocks)
+{
     FILE *outputFile = fopen(PROD_PRICE_INDEX_FILE_NAME, "wb");
-    if (outputFile == NULL) {
+    if (outputFile == NULL)
+    {
         perror("Nao foi possivel criar o arquivo final de indices ordenados");
         return;
     }
 
-	
-    FILE *tempFiles[totalBlocks]; // armazena o ponteiro para todos os arquivos temporarios.
+    FILE *tempFiles[totalBlocks];           // armazena o ponteiro para todos os arquivos temporarios.
     PriceIndex currentIndexes[totalBlocks]; // armazena o indice atual de cada arquivo
-    int activeFiles = 0; // armazena a quantidade de arquivos abertos
+    int activeFiles = 0;                    // armazena a quantidade de arquivos abertos
     int i;
 
     // Abre todos os arquivos temporarios e le o primeiro indice de cada um
-    for (i = 0; i < totalBlocks; i++) {
+    for (i = 0; i < totalBlocks; i++)
+    {
         char tempFileName[30];
         sprintf(tempFileName, "temp_price_block_%d.bin", i);
         tempFiles[i] = fopen(tempFileName, "rb");
-        if (tempFiles[i] != NULL) {
-        	// le o primeiro indice de cada arquivo temporario
-            if (fread(&currentIndexes[i], sizeof(PriceIndex), 1, tempFiles[i]) == 1) {
+        if (tempFiles[i] != NULL)
+        {
+            // le o primeiro indice de cada arquivo temporario
+            if (fread(&currentIndexes[i], sizeof(PriceIndex), 1, tempFiles[i]) == 1)
+            {
                 activeFiles++;
             }
         }
     }
 
     // Merge dos arquivos temporarios
-    while (activeFiles > 0) {
+    while (activeFiles > 0)
+    {
         // Encontra o indice com o menor preco entre os arquivos ativos
         int minIndex = -1; // posicao do menor indice (preco)
         int i;
-        for (i = 0; i < totalBlocks; i++) {
-            if (tempFiles[i] != NULL && (minIndex == -1 || currentIndexes[i].price < currentIndexes[minIndex].price)) {
+        for (i = 0; i < totalBlocks; i++)
+        {
+            if (tempFiles[i] != NULL && (minIndex == -1 || currentIndexes[i].price < currentIndexes[minIndex].price))
+            {
                 minIndex = i;
             }
         }
 
         // Escrever o menor indice no arquivo final
-        if (minIndex != -1) {
+        if (minIndex != -1)
+        {
             fwrite(&currentIndexes[minIndex], sizeof(PriceIndex), 1, outputFile);
 
             // Carrega o proximo indice do arquivo temporario selecionado (o que ja foi escrito)
-            if (fread(&currentIndexes[minIndex], sizeof(PriceIndex), 1, tempFiles[minIndex]) != 1) {
+            if (fread(&currentIndexes[minIndex], sizeof(PriceIndex), 1, tempFiles[minIndex]) != 1)
+            {
                 // Se nao chegou ao final do arquivo atual, fecha o arquivo
                 fclose(tempFiles[minIndex]);
                 tempFiles[minIndex] = NULL; // faz o free do ponteiro do arquivo que foi fechado
@@ -713,7 +732,6 @@ int binarySearchIndexProducts(int id)
     return 0;
 }
 
-
 int binarySearchPriceProducts(float price)
 {
     FILE *indexFile = fopen(PROD_PRICE_INDEX_FILE_NAME, "rb");
@@ -753,7 +771,7 @@ int binarySearchPriceProducts(float price)
             found = 1;
         }
         else if (index.price > price)
-        {           
+        {
             right = mid - 1;
         }
         else if (index.price < price)
@@ -765,15 +783,15 @@ int binarySearchPriceProducts(float price)
     // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
     if (!found)
     {
-	    fclose(indexFile);
-	    fclose(productFile);
+        fclose(indexFile);
+        fclose(productFile);
         return 0;
     }
 
     printf("------------------------------\n");
-    
+
     Product product;
-	fseek(productFile, index.position * sizeof(Product), SEEK_SET);
+    fseek(productFile, index.position * sizeof(Product), SEEK_SET);
 
     fread(&product, sizeof(Product), 1, productFile);
 
@@ -782,16 +800,46 @@ int binarySearchPriceProducts(float price)
     printf("Brand: %s\n", product.brand);
     printf("Category ID: %s\n", product.category_id);
     printf("Category Code: %s\n", product.category_code);
-    
+
     fclose(indexFile);
     fclose(productFile);
-    
-    return 1;
 
+    return 1;
 }
 
+void sequencialSearchProductsId(int id)
+{
+    FILE *file = fopen(PROD_FILE_NAME, "rb");
+    if (file == NULL)
+    {
+        perror("Erro ao abrir o arquivo de produtos");
+        return;
+    }
 
+    Product product;
+    int found = 0;
 
+    while (fread(&product, sizeof(Product), 1, file) == 1)
+    {
+        if (product.id == id)
+        {
+            printf("ID: %d\n", product.id);
+            printf("Price: %.2f\n", product.price);
+            printf("Brand: %s\n", product.brand);
+            printf("Category ID: %s\n", product.category_id);
+            printf("Category Code: %s\n", product.category_code);
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        printf("Produto nao encontrado.\n");
+    }
+
+    fclose(file);
+}
 //----------------------------------
 // FINAL PRODUTOS
 //----------------------------------
@@ -978,26 +1026,29 @@ void printIndexFile(char *filename)
     fclose(file);
 }
 
-int compareUserID(const void *a, const void *b) {
+int compareUserID(const void *a, const void *b)
+{
     UserIDIndex *indexA = (UserIDIndex *)a;
     UserIDIndex *indexB = (UserIDIndex *)b;
 
-	return indexA->user_id - indexB->user_id;
+    return indexA->user_id - indexB->user_id;
 }
 
-
-// Funcao para criar os arquivos temporarios de indice baseados no id do usuario (indice exaustivo) 
+// Funcao para criar os arquivos temporarios de indice baseados no id do usuario (indice exaustivo)
 // (deve utilizar o arquivo de eventos)
-int createTemporaryUserIDIndexFiles(char *filename) {
+int createTemporaryUserIDIndexFiles(char *filename)
+{
     FILE *file = fopen(filename, "rb");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         perror("Nao foi possivel abrir o arquivo de produtos");
         return -1;
     }
 
     Event event;
     UserIDIndex *indexArray = (UserIDIndex *)malloc(sizeof(UserIDIndex) * BLOCK_SIZE);
-    if (indexArray == NULL) {
+    if (indexArray == NULL)
+    {
         perror("Erro ao alocar memoria para o bloco de indices");
         fclose(file);
         return -1;
@@ -1009,21 +1060,24 @@ int createTemporaryUserIDIndexFiles(char *filename) {
     int blockNumber = 0;
 
     // Ler o arquivo de produtos em blocos
-    while (fread(&event, sizeof(Event), 1, file) == 1) {
-        // Preencher o array de índices com o campo price e a posição
+    while (fread(&event, sizeof(Event), 1, file) == 1)
+    {
+        // Preencher o array de ï¿½ndices com o campo price e a posiï¿½ï¿½o
         indexArray[indexCount].user_id = event.user_id;
         indexArray[indexCount].position = position++;
         indexCount++;
 
-        // Quando le a quantidade definida no tamanho do bloco, gera um arquivo temporario. 
-        if (indexCount == BLOCK_SIZE) {
+        // Quando le a quantidade definida no tamanho do bloco, gera um arquivo temporario.
+        if (indexCount == BLOCK_SIZE)
+        {
             qsort(indexArray, indexCount, sizeof(UserIDIndex), compareUserID);
 
             // Criar um arquivo temporario para o bloco `blockNumber`
             char tempFileName[30];
             sprintf(tempFileName, "temp_user_id_block_%d.bin", blockNumber);
             FILE *tempFile = fopen(tempFileName, "wb");
-            if (tempFile == NULL) {
+            if (tempFile == NULL)
+            {
                 perror("Nao foi possivel criar o arquivo temporario");
                 free(indexArray);
                 fclose(file);
@@ -1035,26 +1089,29 @@ int createTemporaryUserIDIndexFiles(char *filename) {
             fclose(tempFile);
             blockNumber++;
             indexCount = 0; // Reinicia o contador de itens do proximo bloco
-            
+
             // desaloca e realoca o array de index.
-            free(indexArray);            
+            free(indexArray);
             indexArray = (UserIDIndex *)malloc(sizeof(UserIDIndex) * BLOCK_SIZE);
-		    if (indexArray == NULL) {
-		        perror("Erro ao alocar memoria para o bloco de indices");
-		        fclose(file);
-		        return -1;
-		    }
+            if (indexArray == NULL)
+            {
+                perror("Erro ao alocar memoria para o bloco de indices");
+                fclose(file);
+                return -1;
+            }
         }
     }
 
     // Escreve os remanscentes que nao completam 1 bloco
-    if (indexCount > 0) {
+    if (indexCount > 0)
+    {
         qsort(indexArray, indexCount, sizeof(UserIDIndex), compareUserID);
 
         char tempFileName[30];
         sprintf(tempFileName, "temp_user_id_block_%d.bin", blockNumber);
         FILE *tempFile = fopen(tempFileName, "wb");
-        if (tempFile == NULL) {
+        if (tempFile == NULL)
+        {
             perror("Nao foi possivel criar o arquivo temporario");
             free(indexArray);
             fclose(file);
@@ -1072,51 +1129,60 @@ int createTemporaryUserIDIndexFiles(char *filename) {
     return blockNumber;
 }
 
-// Função para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
+// Funï¿½ï¿½o para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
 // (abre todos os arquivos temporarios e como estes esta ordenados, le a primeira posicao de cada e vai escrevendo no arquivo final o menor indice encontrado.)
-void mergeSortedUserIDBlocks(int totalBlocks) {
+void mergeSortedUserIDBlocks(int totalBlocks)
+{
     FILE *outputFile = fopen(EVENT_USER_INDEX_FILE_NAME, "wb");
-    if (outputFile == NULL) {
+    if (outputFile == NULL)
+    {
         perror("Nao foi possivel criar o arquivo final de indices ordenados");
         return;
     }
 
-	
-    FILE *tempFiles[totalBlocks]; // armazena o ponteiro para todos os arquivos temporarios.
+    FILE *tempFiles[totalBlocks];            // armazena o ponteiro para todos os arquivos temporarios.
     UserIDIndex currentIndexes[totalBlocks]; // armazena o indice atual de cada arquivo
-    int activeFiles = 0; // armazena a quantidade de arquivos abertos
+    int activeFiles = 0;                     // armazena a quantidade de arquivos abertos
     int i;
 
     // Abre todos os arquivos temporarios e le o primeiro indice de cada um
-    for (i = 0; i < totalBlocks; i++) {
+    for (i = 0; i < totalBlocks; i++)
+    {
         char tempFileName[30];
         sprintf(tempFileName, "temp_user_id_block_%d.bin", i);
         tempFiles[i] = fopen(tempFileName, "rb");
-        if (tempFiles[i] != NULL) {
-        	// le o primeiro indice de cada arquivo temporario
-            if (fread(&currentIndexes[i], sizeof(UserIDIndex), 1, tempFiles[i]) == 1) {
+        if (tempFiles[i] != NULL)
+        {
+            // le o primeiro indice de cada arquivo temporario
+            if (fread(&currentIndexes[i], sizeof(UserIDIndex), 1, tempFiles[i]) == 1)
+            {
                 activeFiles++;
             }
         }
     }
 
     // Merge dos arquivos temporarios
-    while (activeFiles > 0) {
+    while (activeFiles > 0)
+    {
         // Encontra o indice com o menor preco entre os arquivos ativos
         int minIndex = -1; // posicao do menor indice (preco)
         int i;
-        for (i = 0; i < totalBlocks; i++) {
-            if (tempFiles[i] != NULL && (minIndex == -1 || currentIndexes[i].user_id < currentIndexes[minIndex].user_id)) {
+        for (i = 0; i < totalBlocks; i++)
+        {
+            if (tempFiles[i] != NULL && (minIndex == -1 || currentIndexes[i].user_id < currentIndexes[minIndex].user_id))
+            {
                 minIndex = i;
             }
         }
 
         // Escrever o menor indice no arquivo final
-        if (minIndex != -1) {
+        if (minIndex != -1)
+        {
             fwrite(&currentIndexes[minIndex], sizeof(UserIDIndex), 1, outputFile);
 
             // Carrega o proximo indice do arquivo temporario selecionado (o que ja foi escrito)
-            if (fread(&currentIndexes[minIndex], sizeof(UserIDIndex), 1, tempFiles[minIndex]) != 1) {
+            if (fread(&currentIndexes[minIndex], sizeof(UserIDIndex), 1, tempFiles[minIndex]) != 1)
+            {
                 // Se nao chegou ao final do arquivo atual, fecha o arquivo
                 fclose(tempFiles[minIndex]);
                 tempFiles[minIndex] = NULL; // faz o free do ponteiro do arquivo que foi fechado
@@ -1149,7 +1215,6 @@ void printUserIDIndexFromFile(char *indexFilename)
 
     fclose(indexFile);
 }
-
 
 int binarySearchIndexEvents(int id)
 {
@@ -1260,7 +1325,6 @@ int binarySearchIndexEvents(int id)
     return 0;
 }
 
-
 int binarySearchUserIDEvents(int user_id)
 {
     FILE *indexFile = fopen(EVENT_USER_INDEX_FILE_NAME, "rb");
@@ -1300,7 +1364,7 @@ int binarySearchUserIDEvents(int user_id)
             found = 1;
         }
         else if (index.user_id > user_id)
-        {           
+        {
             right = mid - 1;
         }
         else if (index.user_id < user_id)
@@ -1312,15 +1376,15 @@ int binarySearchUserIDEvents(int user_id)
     // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
     if (!found)
     {
-	    fclose(indexFile);
-	    fclose(eventsFile);
+        fclose(indexFile);
+        fclose(eventsFile);
         return 0;
     }
 
     printf("------------------------------\n");
-    
+
     Event event;
-	fseek(eventsFile, index.position * sizeof(Event), SEEK_SET);
+    fseek(eventsFile, index.position * sizeof(Event), SEEK_SET);
 
     fread(&event, sizeof(Event), 1, eventsFile);
 
@@ -1328,12 +1392,11 @@ int binarySearchUserIDEvents(int user_id)
     printf("Type: %s\n", event.event_type);
     printf("Product ID: %d\n", event.product_id);
     printf("User ID: %d\n", event.user_id);
-    
+
     fclose(indexFile);
     fclose(eventsFile);
-    
-    return 1;
 
+    return 1;
 }
 
 //----------------------------------
@@ -1350,6 +1413,7 @@ void printMenu()
     printf("5 -> Pesquisa binaria por ID em eventos\n");
     printf("6 -> Pesquisa binaria por preco em produtos\n");
     printf("7 -> Pesquisa binaria por user_id em eventos\n");
+    printf("8 -> Pesquisa SEQUENCIAL por ID em produtos (apenas para comparaÃ§Ã£o de tempo)\n");
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -1359,8 +1423,8 @@ int main()
     int opc = 0;
     int numBlocks = 0;
     int idSearch = 0;
-	float priceSearch;
-    
+    float priceSearch;
+
     do
     {
         printMenu();
@@ -1392,26 +1456,31 @@ int main()
 
             break;
         case 3:
-        	numBlocks = createTemporaryPriceIndexFiles(PROD_FILE_NAME);
-		    if (numBlocks > 0) {
-		        mergeSortedPriceBlocks(numBlocks);
-		        printf("Arquivo de indice ordenado por preco criado com sucesso.\n");
-		        //printPriceIndexFromFile(PROD_PRICE_INDEX_FILE_NAME);
-		    } else {
-		        printf("Erro ao criar os arquivos temporarios de indice.\n");
-		    }
-		    
-        	numBlocks = createTemporaryUserIDIndexFiles(EVENT_FILE_NAME);
-		    if (numBlocks > 0) {
-		        mergeSortedUserIDBlocks(numBlocks);
-		        printf("Arquivo de indice ordenado por user_id criado com sucesso.\n");
-		        //printUserIDIndexFromFile(EVENT_USER_INDEX_FILE_NAME);
-		    } else {
-		        printf("Erro ao criar os arquivos temporarios de indice.\n");
-		    }		    
-		    
-		    
-        	break;
+            numBlocks = createTemporaryPriceIndexFiles(PROD_FILE_NAME);
+            if (numBlocks > 0)
+            {
+                mergeSortedPriceBlocks(numBlocks);
+                printf("Arquivo de indice ordenado por preco criado com sucesso.\n");
+                // printPriceIndexFromFile(PROD_PRICE_INDEX_FILE_NAME);
+            }
+            else
+            {
+                printf("Erro ao criar os arquivos temporarios de indice.\n");
+            }
+
+            numBlocks = createTemporaryUserIDIndexFiles(EVENT_FILE_NAME);
+            if (numBlocks > 0)
+            {
+                mergeSortedUserIDBlocks(numBlocks);
+                printf("Arquivo de indice ordenado por user_id criado com sucesso.\n");
+                // printUserIDIndexFromFile(EVENT_USER_INDEX_FILE_NAME);
+            }
+            else
+            {
+                printf("Erro ao criar os arquivos temporarios de indice.\n");
+            }
+
+            break;
         case 4:
             // printf("Digite o ID do produto: ");
             // scanf("%d", &idSearch);
@@ -1428,14 +1497,17 @@ int main()
             // printf("Digite o preco do produto: ");
             // scanf("%f", &priceSearch);
             // binarySearchPriceProducts(priceSearch);
-        	binarySearchPriceProducts(5.77); // 5.77 como exemplo
-        	break;
+            binarySearchPriceProducts(5.77); // 5.77 como exemplo
+            break;
         case 7:
             // printf("Digite o ID do usuario: ");
             // scanf("%d", &idSearch);
             // binarySearchUserIDEvents(idSearch);
-        	binarySearchUserIDEvents(518085591); // 518085591 como exemplo
-        	break;
+            binarySearchUserIDEvents(518085591); // 518085591 como exemplo
+            break;
+        case 8:
+            sequencialSearchProductsId(50600085);
+            break;
         }
 
     } while (opc != 0);
