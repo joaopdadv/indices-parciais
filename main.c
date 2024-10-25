@@ -1,16 +1,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 // blocos com tamanho de 10000 registros (para arq. indices)
-#define BLOCK_SIZE 100
+#define BLOCK_SIZE 1000000
 #define PROD_FILE_NAME "sorted_products.bin"
 #define PROD_IDINDEX_FILE_NAME "index_products.bin"
 #define PROD_PRICE_INDEX_FILE_NAME "price_index_products.bin"
 #define EVENT_FILE_NAME "sorted_events.bin"
 #define EVENT_IDINDEX_FILE_NAME "index_events.bin"
 #define EVENT_USER_INDEX_FILE_NAME "user_index_events.bin"
-#define ORIGINAL_FILE_NAME "reducedData.csv"
+#define ORIGINAL_FILE_NAME "2019-Nov.csv"
 
 // ordenado por id
 typedef struct Product
@@ -840,6 +841,43 @@ void sequencialSearchProductsId(int id)
 
     fclose(file);
 }
+
+
+void sequencialSearchProductsPrice(float price)
+{
+    FILE *file = fopen(PROD_FILE_NAME, "rb");
+    if (file == NULL)
+    {
+        perror("Erro ao abrir o arquivo de produtos");
+        return;
+    }
+
+    Product product;
+    int found = 0;
+
+    while (fread(&product, sizeof(Product), 1, file) == 1)
+    {
+        if (product.price == price)
+        {
+            printf("ID: %d\n", product.id);
+            printf("Price: %.2f\n", product.price);
+            printf("Brand: %s\n", product.brand);
+            printf("Category ID: %s\n", product.category_id);
+            printf("Category Code: %s\n", product.category_code);
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        printf("Produto nao encontrado.\n");
+    }
+
+    fclose(file);
+}
+
+
 //----------------------------------
 // FINAL PRODUTOS
 //----------------------------------
@@ -1413,7 +1451,8 @@ void printMenu()
     printf("5 -> Pesquisa binaria por ID em eventos\n");
     printf("6 -> Pesquisa binaria por preco em produtos\n");
     printf("7 -> Pesquisa binaria por user_id em eventos\n");
-    printf("8 -> Pesquisa SEQUENCIAL por ID em produtos (apenas para comparação de tempo)\n");
+    printf("8 -> Pesquisa SEQUENCIAL por ID em produtos (comparacao de tempo)\n");
+    printf("9 -> Pesquisa Binaria (indice) e Sequencial por preco (comparacao de tempo)\n");
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -1424,6 +1463,7 @@ int main()
     int numBlocks = 0;
     int idSearch = 0;
     float priceSearch;
+    clock_t t;
 
     do
     {
@@ -1443,7 +1483,7 @@ int main()
             {
                 printf("Nenhum bloco de produtos foi criado.\n");
             }
-            // printProductsFromFile(PROD_FILE_NAME);
+            //printProductsFromFile(PROD_FILE_NAME);
             createEventFile(ORIGINAL_FILE_NAME);
             // printEventsFromFile(EVENT_FILE_NAME);
             break;
@@ -1485,7 +1525,7 @@ int main()
             // printf("Digite o ID do produto: ");
             // scanf("%d", &idSearch);
             // binarySearchIndexProducts(idSearch);
-            binarySearchIndexProducts(50600085); // 50600085 como exemplo
+            binarySearchIndexProducts(100028530);
             break;
         case 5:
             // printf("Digite o ID do evento: ");
@@ -1506,7 +1546,33 @@ int main()
             binarySearchUserIDEvents(518085591); // 518085591 como exemplo
             break;
         case 8:
-            sequencialSearchProductsId(50600085);
+        	t = clock();
+            binarySearchIndexProducts(100028530);
+            t = clock() - t;
+            float tempoGastoBinario = (float)(t) / CLOCKS_PER_SEC;
+        	t = clock();  		
+    		printf("------------------------------\n");
+            sequencialSearchProductsId(100028530); // ultimo id do arquivo
+    		t = clock() - t;
+    		float tempoGastoSequencial = (float)(t) / CLOCKS_PER_SEC;
+    		printf("------------------------------\n");
+    		printf("--- Comparacao de tempo ---\n");
+    		printf("Busca binaria: %.4f s\n", tempoGastoBinario);
+    		printf("Busca sequencial: %.4f s\n", tempoGastoSequencial);
+            break;
+        case 9:
+        	t = clock();
+            sequencialSearchProductsPrice(411.57);
+    		t = clock() - t;
+    		float tempoGastoSeqPrice = (float)(t) / CLOCKS_PER_SEC;
+    		t = clock();
+    		binarySearchPriceProducts(411.57);
+    		t = clock() - t;    		
+    		float tempoGastoBinPrice = (float)(t) / CLOCKS_PER_SEC;    		
+    		printf("------------------------------\n");
+    		printf("--- Comparacao de tempo ---\n");
+    		printf("Busca binaria: %.4f s\n", tempoGastoBinPrice);
+    		printf("Busca sequencial: %.4f s\n", tempoGastoSeqPrice);
             break;
         }
 
