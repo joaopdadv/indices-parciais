@@ -4,14 +4,18 @@
 #include <time.h>
 
 // blocos com tamanho de 10000 registros (para arq. indices)
-#define BLOCK_SIZE 1000000
+#define BLOCK_SIZE 10000
 #define PROD_FILE_NAME "sorted_products.bin"
 #define PROD_IDINDEX_FILE_NAME "index_products.bin"
 #define PROD_PRICE_INDEX_FILE_NAME "price_index_products.bin"
 #define EVENT_FILE_NAME "sorted_events.bin"
 #define EVENT_IDINDEX_FILE_NAME "index_events.bin"
 #define EVENT_USER_INDEX_FILE_NAME "user_index_events.bin"
-#define ORIGINAL_FILE_NAME "2019-Nov.csv"
+//#define ORIGINAL_FILE_NAME "2019-Nov.csv"
+#define ORIGINAL_FILE_NAME "reducedData.csv"
+
+#define ORDER 128  // Ordem da árvore B
+
 
 // ordenado por id
 typedef struct Product
@@ -76,7 +80,7 @@ int countNumLines(char *name)
 
     if (file == NULL)
     {
-        printf("Nao foi possível abrir o arquivo");
+        printf("Nao foi possÃ­vel abrir o arquivo");
         return -1;
     }
 
@@ -205,25 +209,25 @@ int createTemporaryProductFiles(char *filename)
             // Ordena o bloco
             qsort(products, b, sizeof(Product), compareProducts);
 
-            // Cria um arquivo tempor�rio para o bloco
+            // Cria um arquivo temporï¿½rio para o bloco
             char tempFileName[20];
             sprintf(tempFileName, "temp_p_block_%d.bin", blockNumber);
             FILE *tempFile = fopen(tempFileName, "wb");
             if (tempFile == NULL)
             {
-                perror("Erro ao criar arquivo tempor�rio");
+                perror("Erro ao criar arquivo temporario");
                 free(products);
                 fclose(file);
                 return -1;
             }
 
-            // Escreve o bloco ordenado no arquivo tempor�rio
+            // Escreve o bloco ordenado no arquivo temporario
             size_t written = fwrite(products, sizeof(Product), b, tempFile);
             fclose(tempFile);
 
             if (written != b)
             {
-                printf("Erro ao escrever no arquivo temporário. Esperado: %d, Escrito: %zu\n", b, written);
+                printf("Erro ao escrever no arquivo temporario. Esperado: %d, Escrito: %zu\n", b, written);
             }
             else
             {
@@ -235,7 +239,7 @@ int createTemporaryProductFiles(char *filename)
         }
     }
 
-    // Escreve remanescentes que n�o completam 1 bloco.
+    // Escreve remanescentes que nao completam 1 bloco.
     if (b > 0)
     {
         qsort(products, b, sizeof(Product), compareProducts);
@@ -245,7 +249,7 @@ int createTemporaryProductFiles(char *filename)
         FILE *tempFile = fopen(tempFileName, "wb");
         if (tempFile == NULL)
         {
-            perror("Erro ao criar arquivo temporário");
+            perror("Erro ao criar arquivo temporÃ¡rio");
             free(products);
             fclose(file);
             return -1;
@@ -267,7 +271,7 @@ int createTemporaryProductFiles(char *filename)
     free(products);
     fclose(file);
 
-    return blockNumber; // Retorna o número de blocos criados
+    return blockNumber; // Retorna o nÃºmero de blocos criados
 }
 
 // realiza o merge dos arquivos temporarios
@@ -284,7 +288,7 @@ int mergeSortedBlocks(int numBlocks)
     Product currentProducts[numBlocks];
     int activeFiles = 0;
     int i = 0;
-    // Abre todos os arquivos tempor�rios
+    // Abre todos os arquivos temporï¿½rios
     for (i = 0; i < numBlocks; i++)
     {
         char tempFileName[20];
@@ -326,7 +330,7 @@ int mergeSortedBlocks(int numBlocks)
                 firstWrite = 0;
             }
 
-            // Carrega o pr�ximo produto do arquivo tempor�rio selecionado
+            // Carrega o prï¿½ximo produto do arquivo temporï¿½rio selecionado
             if (fread(&currentProducts[minIndex], sizeof(Product), 1, tempFiles[minIndex]) != 1)
             {
                 fclose(tempFiles[minIndex]);
@@ -353,7 +357,7 @@ void printProductsFromFile(char *filename)
     Product product;
     size_t readCount;
 
-    // L� os produtos do arquivo e imprime suas informacoes
+    // Lï¿½ os produtos do arquivo e imprime suas informacoes
     while ((readCount = fread(&product, sizeof(Product), 1, file)) == 1)
     {
         printf("ID: %d\n", product.id);
@@ -469,7 +473,7 @@ int createTemporaryPriceIndexFiles(char *filename)
     // Ler o arquivo de produtos em blocos
     while (fread(&product, sizeof(Product), 1, file) == 1)
     {
-        // Preencher o array de �ndices com o campo price e a posi��o
+        // Preencher o array de ï¿½ndices com o campo price e a posiï¿½ï¿½o
         indexArray[indexCount].price = product.price;
         indexArray[indexCount].position = position++;
         indexCount++;
@@ -536,7 +540,7 @@ int createTemporaryPriceIndexFiles(char *filename)
     return blockNumber;
 }
 
-// Fun��o para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
+// Funï¿½ï¿½o para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
 // (abre todos os arquivos temporarios e como estes esta ordenados, le a primeira posicao de cada e vai escrevendo no arquivo final o menor indice encontrado.)
 void mergeSortedPriceBlocks(int totalBlocks)
 {
@@ -687,7 +691,7 @@ int binarySearchIndexProducts(int id)
         }
     }
 
-    // quando encontrar o registro, ler o bloco (ir para o arquivo na posicao index.position - BLOCK_SIZE) e fazer a busca sequencial no arquivo normal até index.position
+    // quando encontrar o registro, ler o bloco (ir para o arquivo na posicao index.position - BLOCK_SIZE) e fazer a busca sequencial no arquivo normal atÃ© index.position
     if (!found)
     {
         return 0;
@@ -898,7 +902,7 @@ int createEventFile(char *filename)
         return 0;
     }
 
-    // Cabe�alho
+    // Cabeï¿½alho
     fgets(line, sizeof(line), file);
 
     int i = 0;
@@ -960,7 +964,7 @@ void printEventsFromFile(char *filename)
     Event event;
     size_t readCount;
 
-    // L� os produtos do arquivo e imprime suas informa��es
+    // Lï¿½ os produtos do arquivo e imprime suas informaï¿½ï¿½es
     while ((readCount = fread(&event, sizeof(Event), 1, file)) == 1)
     {
 
@@ -1100,7 +1104,7 @@ int createTemporaryUserIDIndexFiles(char *filename)
     // Ler o arquivo de produtos em blocos
     while (fread(&event, sizeof(Event), 1, file) == 1)
     {
-        // Preencher o array de �ndices com o campo price e a posi��o
+        // Preencher o array de ï¿½ndices com o campo price e a posiï¿½ï¿½o
         indexArray[indexCount].user_id = event.user_id;
         indexArray[indexCount].position = position++;
         indexCount++;
@@ -1167,7 +1171,7 @@ int createTemporaryUserIDIndexFiles(char *filename)
     return blockNumber;
 }
 
-// Fun��o para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
+// Funï¿½ï¿½o para realizar o merge dos arquivos temporarios e gerar o arquivo final de indices por preco ordenado
 // (abre todos os arquivos temporarios e como estes esta ordenados, le a primeira posicao de cada e vai escrevendo no arquivo final o menor indice encontrado.)
 void mergeSortedUserIDBlocks(int totalBlocks)
 {
@@ -1441,6 +1445,213 @@ int binarySearchUserIDEvents(int user_id)
 // FINAL EVENTOS
 //----------------------------------
 
+
+// ------------- Trab 2 -------------
+
+
+// Definindo a estrutura de um nó da árvore B
+typedef struct BTreeNode {
+    int num_keys;                      // Número de chaves no nó
+    int* keys;                         // Chaves do nó
+    int* values;                      // Ponteiros para os registros (endereços)
+    struct BTreeNode** children;       // Ponteiros para os filhos
+    int is_leaf;                       // 1 se for folha, 0 caso contrário
+} BTreeNode;
+
+// Definindo a árvore B
+typedef struct BTree {
+    BTreeNode* root;
+} BTree;
+
+// Função para criar um nó da árvore B
+BTreeNode* create_node(int is_leaf) {
+    BTreeNode* node = (BTreeNode*)malloc(sizeof(BTreeNode));
+    node->is_leaf = is_leaf;
+    node->num_keys = 0;
+    node->keys = (int*)malloc(sizeof(int) * (ORDER - 1));
+    node->values = (int*)malloc(sizeof(int) * (ORDER - 1));
+    node->children = (BTreeNode**)malloc(sizeof(BTreeNode*) * ORDER);
+    return node;
+}
+
+// Função para criar a árvore B
+BTree* create_btree() {
+    BTree* tree = (BTree*)malloc(sizeof(BTree));
+    tree->root = create_node(1);  // A raiz inicialmente é uma folha
+    return tree;
+}
+
+// Função para realizar a inserção na árvore B
+void insert(BTree* tree, int id, int value) {
+    BTreeNode* root = tree->root;
+
+    // Se a raiz estiver cheia, devemos dividir
+    if (root->num_keys == ORDER - 1) {
+        BTreeNode* new_root = create_node(0);  // Novo nó raiz não é folha
+        new_root->children[0] = root;
+
+        // Dividindo a raiz
+        split_child(new_root, 0);
+        tree->root = new_root;
+    }
+
+    // Inserir no nó correto
+    insert_non_full(tree->root, id, value);
+}
+
+// Função para dividir um nó cheio
+void split_child(BTreeNode* parent, int index) {
+    BTreeNode* full_node = parent->children[index];
+    BTreeNode* new_node = create_node(full_node->is_leaf);
+
+    int mid = ORDER / 2;
+
+    // Movendo a chave do meio para o nó pai
+    parent->keys[index] = full_node->keys[mid];
+    parent->num_keys++;
+
+    // Transferindo a segunda metade das chaves e filhos para o novo nó
+    int i = mid + 1;
+    for (i; i < ORDER - 1; i++) {
+        new_node->keys[i - (mid + 1)] = full_node->keys[i];
+        new_node->values[i - (mid + 1)] = full_node->values[i];
+        new_node->children[i - (mid + 1)] = full_node->children[i];
+        full_node->keys[i] = 0;
+        full_node->values[i] = 0;
+        full_node->children[i] = NULL;
+    }
+
+    full_node->num_keys = mid;
+
+    // Atualizando o filho da árvore
+    parent->children[index + 1] = new_node;
+}
+
+// Função para inserir no nó não cheio
+void insert_non_full(BTreeNode* node, int id, int value) {
+    int i = node->num_keys - 1;
+
+    // Se for uma folha, insere diretamente
+    if (node->is_leaf) {
+        while (i >= 0 && node->keys[i] > id) {
+            node->keys[i + 1] = node->keys[i];
+            node->values[i + 1] = node->values[i];
+            i--;
+        }
+
+        node->keys[i + 1] = id;
+        node->values[i + 1] = value;
+        node->num_keys++;
+    } else {
+        // Se não for uma folha, procura o filho correto
+        while (i >= 0 && node->keys[i] > id) {
+            i--;
+        }
+        i++;
+
+        // Chama recursivamente para o filho
+        if (node->children[i]->num_keys == ORDER - 1) {
+            split_child(node, i);
+            if (node->keys[i] < id) {
+                i++;
+            }
+        }
+        insert_non_full(node->children[i], id, value);
+    }
+}
+
+
+// Função para inserir um produto no índice
+void insert_product_index(BTree* tree, Product* product, int file_offset) {
+    insert(tree, product->id, file_offset);
+}
+
+
+// Função para realizar a pesquisa na árvore B
+void search(BTree* tree, int id) {	
+	
+	int position = search_node(tree->root, id);
+			
+	 // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
+    if (position < 0)
+    {
+        return;
+    }
+
+    printf("------------------------------\n");
+    
+	FILE *file = fopen(PROD_FILE_NAME, "rb");
+    if (file == NULL)
+    {
+        perror("Erro ao abrir o arquivo de produtos");
+        return;
+    }
+
+    Product product;	
+    fseek(file, position * sizeof(Product), SEEK_SET);
+
+    fread(&product, sizeof(Product), 1, file);
+
+    printf("ID: %d\n", product.id);
+    printf("Price: %.2f\n", product.price);
+    printf("Brand: %s\n", product.brand);
+    printf("Category ID: %s\n", product.category_id);
+    printf("Category Code: %s\n", product.category_code);
+
+    fclose(file);
+	
+}
+
+// Função para pesquisar recursivamente em um nó
+int search_node(BTreeNode* node, int id) {
+    int i = 0;
+
+    // Procurando no nó atual a chave correspondente
+    while (i < node->num_keys && id > node->keys[i]) {
+        i++;
+    }
+
+    // Se encontramos a chave
+    if (i < node->num_keys && id == node->keys[i]) {
+        return node->values[i];  // Retorna o endereço do registro no arquivo
+    }
+
+    // Se o nó é uma folha, a chave não existe
+    if (node->is_leaf) {
+        return (int)-1;  // Não encontrado
+    }
+
+    // Se não encontramos a chave, seguimos na subárvore
+    return search_node(node->children[i], id);
+}
+
+
+void createBTreeIndexFile(char *filename, BTree* tree)
+{
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL)
+    {
+        perror("Nao foi possivel abrir o arquivo de produtos");
+        return;
+    }
+
+    Product *product = (Product *)malloc(sizeof(Product));
+    int totalProducts = 0;
+    
+    while (fread(product, sizeof(Product), 1, file) == 1)
+    {    	
+		insert_product_index(tree, product, totalProducts);		   	
+        totalProducts++;
+    }
+
+    fclose(file);
+    free(product);
+}
+
+
+// ------------- Trab 2 -------------
+
+
 void printMenu()
 {
     printf("---------------- MENU ----------------\n");
@@ -1453,6 +1664,9 @@ void printMenu()
     printf("7 -> Pesquisa binaria por user_id em eventos\n");
     printf("8 -> Pesquisa SEQUENCIAL por ID em produtos (comparacao de tempo)\n");
     printf("9 -> Pesquisa Binaria (indice) e Sequencial por preco (comparacao de tempo)\n");
+    printf("10 -> Criar arvore B de indice (id do produto)\n");
+    printf("11 -> Comparar tempo de busca nos indices por id (produto)\n");
+    
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -1463,7 +1677,10 @@ int main()
     int numBlocks = 0;
     int idSearch = 0;
     float priceSearch;
-    clock_t t;
+    clock_t t;    
+    int prod_pesquisa = 12719154; //100028530
+    
+    BTree* tree = create_btree();
 
     do
     {
@@ -1574,6 +1791,26 @@ int main()
     		printf("Busca binaria: %.4f s\n", tempoGastoBinPrice);
     		printf("Busca sequencial: %.4f s\n", tempoGastoSeqPrice);
             break;
+        case 10:
+        	t = clock();
+            createBTreeIndexFile(PROD_FILE_NAME, tree);
+    		t = clock() - t;
+    		float tempoGastoCriarArvore = (float)(t) / CLOCKS_PER_SEC;
+    		printf("Tempo gasto para criacao da arvore B: %.4f\n", tempoGastoCriarArvore);
+        	break;
+        case 11:
+			t = clock();
+            binarySearchIndexProducts(prod_pesquisa);
+    		t = clock() - t;
+    		float tempoGastoBin1 = (float)(t) / CLOCKS_PER_SEC;
+    		t = clock();
+    		search(tree, prod_pesquisa);
+    		t = clock() - t;    		
+    		float tempoGastoTree1 = (float)(t) / CLOCKS_PER_SEC;    
+        	printf("------------------------------\n");
+    		printf("--- Comparacao de tempo ---\n");
+    		printf("Busca binaria (arquivo): %.4f s\n", tempoGastoBin1);
+    		printf("Busca arvore B: %.4f s\n", tempoGastoTree1);
         }
 
     } while (opc != 0);
