@@ -1481,24 +1481,6 @@ BTree* create_btree() {
     return tree;
 }
 
-// Função para realizar a inserção na árvore B
-void insert(BTree* tree, int id, int value) {
-    BTreeNode* root = tree->root;
-
-    // Se a raiz estiver cheia, devemos dividir
-    if (root->num_keys == ORDER - 1) {
-        BTreeNode* new_root = create_node(0);  // Novo nó raiz não é folha
-        new_root->children[0] = root;
-
-        // Dividindo a raiz
-        split_child(new_root, 0);
-        tree->root = new_root;
-    }
-
-    // Inserir no nó correto
-    insert_non_full(tree->root, id, value);
-}
-
 // Função para dividir um nó cheio
 void split_child(BTreeNode* parent, int index) {
     BTreeNode* full_node = parent->children[index];
@@ -1561,11 +1543,52 @@ void insert_non_full(BTreeNode* node, int id, int value) {
 }
 
 
+// Função para realizar a inserção na árvore B
+void insert(BTree* tree, int id, int value) {
+    BTreeNode* root = tree->root;
+
+    // Se a raiz estiver cheia, devemos dividir
+    if (root->num_keys == ORDER - 1) {
+        BTreeNode* new_root = create_node(0);  // Novo nó raiz não é folha
+        new_root->children[0] = root;
+
+        // Dividindo a raiz
+        split_child(new_root, 0);
+        tree->root = new_root;
+    }
+
+    // Inserir no nó correto
+    insert_non_full(tree->root, id, value);
+}
+
+// Função para pesquisar recursivamente em um nó
+int search_node(BTreeNode* node, int id) {
+    int i = 0;
+
+    // Procurando no nó atual a chave correspondente
+    while (i < node->num_keys && id > node->keys[i]) {
+        i++;
+    }
+
+    // Se encontramos a chave
+    if (i < node->num_keys && id == node->keys[i]) {
+        return node->values[i];  // Retorna o endereço do registro no arquivo
+    }
+
+    // Se o nó é uma folha, a chave não existe
+    if (node->is_leaf) {
+        return (int)-1;  // Não encontrado
+    }
+
+    // Se não encontramos a chave, seguimos na subárvore
+    return search_node(node->children[i], id);
+}
+
+
 // Função para inserir um produto no índice
 void insert_product_index(BTree* tree, Product* product, int file_offset) {
     insert(tree, product->id, file_offset);
 }
-
 
 // Função para realizar a pesquisa na árvore B
 void search(BTree* tree, int id) {	
@@ -1602,28 +1625,7 @@ void search(BTree* tree, int id) {
 	
 }
 
-// Função para pesquisar recursivamente em um nó
-int search_node(BTreeNode* node, int id) {
-    int i = 0;
 
-    // Procurando no nó atual a chave correspondente
-    while (i < node->num_keys && id > node->keys[i]) {
-        i++;
-    }
-
-    // Se encontramos a chave
-    if (i < node->num_keys && id == node->keys[i]) {
-        return node->values[i];  // Retorna o endereço do registro no arquivo
-    }
-
-    // Se o nó é uma folha, a chave não existe
-    if (node->is_leaf) {
-        return (int)-1;  // Não encontrado
-    }
-
-    // Se não encontramos a chave, seguimos na subárvore
-    return search_node(node->children[i], id);
-}
 
 
 void createBTreeIndexFile(char *filename, BTree* tree)
