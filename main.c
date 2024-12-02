@@ -1625,8 +1625,7 @@ void search(BTree* tree, int id) {
 	
 }
 
-
-
+// ------------- Trab 2 -------------
 
 void createBTreeIndexFile(char *filename, BTree* tree)
 {
@@ -1650,8 +1649,176 @@ void createBTreeIndexFile(char *filename, BTree* tree)
     free(product);
 }
 
+#define HASH_SIZE 10000000
+#define HASH_INDEX_FILE_NAME "hash_events_user_index.bin"
 
-// ------------- Trab 2 -------------
+// hash index struct
+typedef struct HashIndex
+{
+    int hash;
+    int position;
+} HashIndex;
+
+int colisoes = 0;
+
+void insert_hash_index(Event *event, int position)
+{
+    int hash1 = event->user_id % HASH_SIZE; // Primeiro hash (básico)
+    int hash2 = 1 + (event->user_id % (HASH_SIZE - 1)); // Segundo hash para duplo hashing
+    int hash = hash1;
+
+    HashIndex tempIndex;
+    memset(&tempIndex, 0, sizeof(HashIndex)); // Inicializa temporário
+
+    printf("User_id: %d, Hash1 inicial: %d, Hash2: %d\n", event->user_id, hash1, hash2);
+
+    FILE *file = fopen(HASH_INDEX_FILE_NAME, "wb"); // Abre em modo de escrita para limpar o arquivo
+    if (!file)
+    {
+        perror("Erro ao criar o arquivo de índices");
+        return;
+    }
+    fclose(file); // Fecha o arquivo após limpar
+
+    file = fopen(HASH_INDEX_FILE_NAME, "rb+"); // Reabre para leitura/escrita
+    if (!file)
+    {
+        perror("Erro ao reabrir o arquivo de índices");
+        return;
+    }
+
+    int i = 0; // Contador de tentativas
+    while (1)
+    {
+        fseek(file, hash * sizeof(HashIndex), SEEK_SET);
+        if (fread(&tempIndex, sizeof(HashIndex), 1, file) != 1 || tempIndex.hash == 0)
+        {
+            // Posição livre encontrada
+            tempIndex.hash = hash;
+            tempIndex.position = position;
+            fseek(file, hash * sizeof(HashIndex), SEEK_SET);
+            fwrite(&tempIndex, sizeof(HashIndex), 1, file);
+            //printf("Index inserido no hash %d após %d colisões.\n", hash, i);
+            break;
+        }
+
+        // Colisão, tenta próximo hash
+        printf("Colisão encontrada no hash %d, tentando próximo...\n", hash);
+        colisoes++;
+        i++;
+        hash = (hash1 + i * hash2) % HASH_SIZE;
+
+        if (i >= HASH_SIZE)
+        {
+            printf("Erro: Tabela de hash está cheia.\n");
+            break;
+        }
+    }
+
+    fclose(file);
+}
+
+void createHashIndexFile(char *filename)
+{
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL)
+    {
+        perror("Nao foi possivel abrir o arquivo");
+        return;
+    }
+
+    Event *events = (Event *)malloc(sizeof(Event));
+    int totalEvents = 0;
+    
+    while (fread(events, sizeof(Event), 1, file) == 1)
+    {    	
+        // Inserir no hash
+        insert_hash_index(events, totalEvents);		   	
+        totalEvents++;
+    }
+
+    fclose(file);
+    free(events);
+}
+
+HashIndex get_hash_index(int user_id)
+{
+    int hash1 = user_id % HASH_SIZE; // Primeiro hash
+    int hash2 = 1 + (user_id % (HASH_SIZE - 1)); // Segundo hash para duplo hashing
+    int hash = hash1;
+
+    HashIndex tempIndex;
+    memset(&tempIndex, 0, sizeof(HashIndex)); // Inicializa temporário
+
+    FILE *file = fopen(HASH_INDEX_FILE_NAME, "rb");
+    if (!file)
+    {
+        perror("Erro ao abrir o arquivo de índices");
+        return tempIndex; // Retorna índice vazio em caso de erro
+    }
+
+    int i = 0; // Contador de tentativas
+    while (1)
+    {
+        fseek(file, hash * sizeof(HashIndex), SEEK_SET);
+        if (fread(&tempIndex, sizeof(HashIndex), 1, file) == 1)
+        {
+            if (tempIndex.hash == hash) // Verifica se o hash corresponde
+            {
+                fclose(file);
+                return tempIndex;
+            }
+        }
+        else
+        {
+            // Registro não encontrado
+            printf("Registro não encontrado para user_id: %d\n", user_id);
+            break;
+        }
+
+        // Próximo hash em caso de colisão
+        i++;
+        hash = (hash1 + i * hash2) % HASH_SIZE;
+
+        if (i >= HASH_SIZE)
+        {
+            printf("Erro: Tabela de hash está cheia ou registro não encontrado.\n");
+            break;
+        }
+    }
+
+    fclose(file);
+    memset(&tempIndex, 0, sizeof(HashIndex)); // Retorna índice vazio se não encontrado
+    return tempIndex;
+}
+
+void find_evend_by_user_id(int user_id)
+{
+    HashIndex index = get_hash_index(user_id);
+    if (index.hash == 0)
+    {
+        printf("Registro não encontrado para user_id: %d\n", user_id);
+        return;
+    }
+
+    FILE *file = fopen(EVENT_FILE_NAME, "rb");
+    if (file == NULL)
+    {
+        perror("Erro ao abrir o arquivo de eventos");
+        return;
+    }
+
+    Event event;
+    fseek(file, index.position * sizeof(Event), SEEK_SET);
+    fread(&event, sizeof(Event), 1, file);
+
+    printf("ID: %d\n", event.id);
+    printf("Type: %s\n", event.event_type);
+    printf("Product ID: %d\n", event.product_id);
+    printf("User ID: %d\n", event.user_id);
+
+    fclose(file);
+}
 
 
 void printMenu()
@@ -1668,6 +1835,8 @@ void printMenu()
     printf("9 -> Pesquisa Binaria (indice) e Sequencial por preco (comparacao de tempo)\n");
     printf("10 -> Criar arvore B de indice (id do produto)\n");
     printf("11 -> Comparar tempo de busca nos indices por id (produto)\n");
+    printf("12 -> Criar indices por Hash\n");
+    printf("13 -> BUscar Evento Por Hash de User Id\n");
     
     printf("0 -> Sair\n");
     printf("Opcao: ");
@@ -1813,6 +1982,21 @@ int main()
     		printf("--- Comparacao de tempo ---\n");
     		printf("Busca binaria (arquivo): %.4f s\n", tempoGastoBin1);
     		printf("Busca arvore B: %.4f s\n", tempoGastoTree1);
+        case 12:
+        	t = clock();
+            createHashIndexFile(EVENT_FILE_NAME);
+    		t = clock() - t;
+    		float tempoCriarHash = (float)(t) / CLOCKS_PER_SEC;
+    		printf("Tempo gasto para criacao dos hashs: %.4f\n", tempoCriarHash);
+    		printf("colisões: %d\n", colisoes);
+            colisoes = 0;
+        	break;
+        case 13:
+            // printf("Digite o ID do usuario: ");
+            // scanf("%d", &idSearch);
+            // find_evend_by_user_id(idSearch);
+            find_evend_by_user_id(517167420); // 541480181 como exemplo
+            break;
         }
 
     } while (opc != 0);
