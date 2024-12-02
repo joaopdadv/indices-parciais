@@ -16,6 +16,8 @@
 
 #define ORDER 128  // Ordem da árvore B
 
+#define HASH_SIZE 10000000
+#define HASH_INDEX_FILE_NAME "hash_events_user_index.bin"
 
 // ordenado por id
 typedef struct Product
@@ -56,6 +58,14 @@ typedef struct
     int user_id;
     int position;
 } UserIDIndex;
+
+typedef struct
+{
+    int hash;
+    int position;
+} MemoryIndex;
+
+MemoryIndex *hashs;
 
 char *strsep(char **stringp, const char *delim)
 {
@@ -1649,26 +1659,6 @@ void createBTreeIndexFile(char *filename, BTree* tree)
     free(product);
 }
 
-#define HASH_SIZE 10000000
-#define HASH_INDEX_FILE_NAME "hash_events_user_index.bin"
-
-// hash index struct
-// typedef struct HashIndex
-// {
-//     int hash;
-//     int position;
-// } HashIndex;
-
-int colisoes = 0;
-
-typedef struct
-{
-    int hash;
-    int position;
-} MemoryIndex;
-
-MemoryIndex *hashs;
-
 void initialize_memory_index(MemoryIndex **hashs)
 {
     *hashs = (MemoryIndex *)malloc(HASH_SIZE * sizeof(MemoryIndex));
@@ -1812,7 +1802,7 @@ void readAllHashs(MemoryIndex *hashs)
     }
 }
 
-
+int colisoes = 0;
 void printMenu()
 {
     printf("---------------- MENU ----------------\n");
