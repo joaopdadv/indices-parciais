@@ -1653,72 +1653,69 @@ void createBTreeIndexFile(char *filename, BTree* tree)
 #define HASH_INDEX_FILE_NAME "hash_events_user_index.bin"
 
 // hash index struct
-typedef struct HashIndex
-{
-    int hash;
-    int position;
-} HashIndex;
+// typedef struct HashIndex
+// {
+//     int hash;
+//     int position;
+// } HashIndex;
 
 int colisoes = 0;
 
-void insert_hash_index(Event *event, int position)
+typedef struct
 {
-    int hash1 = event->user_id % HASH_SIZE; // Primeiro hash (básico)
-    int hash2 = 1 + (event->user_id % (HASH_SIZE - 1)); // Segundo hash para duplo hashing
+    int hash;
+    int position;
+} MemoryIndex;
+
+MemoryIndex *hashs;
+
+void initialize_memory_index(MemoryIndex **hashs)
+{
+    *hashs = (MemoryIndex *)malloc(HASH_SIZE * sizeof(MemoryIndex));
+    if (*hashs == NULL)
+    {
+        perror("Erro ao alocar memória");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < HASH_SIZE; i++)
+    {
+        (*hashs)[i].hash = 0; // Marca como vazio
+        (*hashs)[i].position = -1;
+    }
+}
+
+void insert_memory_index(int user_id, int position, MemoryIndex *hashs)
+{
+    int hash1 = user_id % HASH_SIZE;
+    int hash2 = 1 + (user_id % (HASH_SIZE - 1));
     int hash = hash1;
 
-    HashIndex tempIndex;
-    memset(&tempIndex, 0, sizeof(HashIndex)); // Inicializa temporário
+    printf("Hash: %d\n", hash);
+    printf("User ID: %d\n", user_id);
 
-    printf("User_id: %d, Hash1 inicial: %d, Hash2: %d\n", event->user_id, hash1, hash2);
-
-    FILE *file = fopen(HASH_INDEX_FILE_NAME, "wb"); // Abre em modo de escrita para limpar o arquivo
-    if (!file)
-    {
-        perror("Erro ao criar o arquivo de índices");
-        return;
-    }
-    fclose(file); // Fecha o arquivo após limpar
-
-    file = fopen(HASH_INDEX_FILE_NAME, "rb+"); // Reabre para leitura/escrita
-    if (!file)
-    {
-        perror("Erro ao reabrir o arquivo de índices");
-        return;
-    }
-
-    int i = 0; // Contador de tentativas
+    int i = 0;
     while (1)
     {
-        fseek(file, hash * sizeof(HashIndex), SEEK_SET);
-        if (fread(&tempIndex, sizeof(HashIndex), 1, file) != 1 || tempIndex.hash == 0)
+        if (hashs[hash].hash == 0) // Slot vazio
         {
-            // Posição livre encontrada
-            tempIndex.hash = hash;
-            tempIndex.position = position;
-            fseek(file, hash * sizeof(HashIndex), SEEK_SET);
-            fwrite(&tempIndex, sizeof(HashIndex), 1, file);
-            //printf("Index inserido no hash %d após %d colisões.\n", hash, i);
+            hashs[hash].hash = user_id;
+            hashs[hash].position = position;
             break;
         }
 
-        // Colisão, tenta próximo hash
-        printf("Colisão encontrada no hash %d, tentando próximo...\n", hash);
-        colisoes++;
         i++;
         hash = (hash1 + i * hash2) % HASH_SIZE;
 
         if (i >= HASH_SIZE)
         {
-            printf("Erro: Tabela de hash está cheia.\n");
+            printf("Erro: Índice está cheio.\n");
             break;
         }
     }
-
-    fclose(file);
 }
 
-void createHashIndexFile(char *filename)
+void createHashIndexes(char *filename, MemoryIndex *hashs)
 {
     FILE *file = fopen(filename, "rb");
     if (file == NULL)
@@ -1727,74 +1724,58 @@ void createHashIndexFile(char *filename)
         return;
     }
 
-    Event *events = (Event *)malloc(sizeof(Event));
+    Event *event = (Event *)malloc(sizeof(Event));
     int totalEvents = 0;
     
-    while (fread(events, sizeof(Event), 1, file) == 1)
+    while (fread(event, sizeof(Event), 1, file) == 1)
     {    	
         // Inserir no hash
-        insert_hash_index(events, totalEvents);		   	
+        insert_memory_index(event->user_id, totalEvents, hashs);		   	
         totalEvents++;
     }
 
     fclose(file);
-    free(events);
+    free(event);
 }
 
-HashIndex get_hash_index(int user_id)
+MemoryIndex get_memory_index(int user_id, MemoryIndex *hashs)
 {
-    int hash1 = user_id % HASH_SIZE; // Primeiro hash
-    int hash2 = 1 + (user_id % (HASH_SIZE - 1)); // Segundo hash para duplo hashing
+    int hash1 = user_id % HASH_SIZE;
+    int hash2 = 1 + (user_id % (HASH_SIZE - 1));
     int hash = hash1;
 
-    HashIndex tempIndex;
-    memset(&tempIndex, 0, sizeof(HashIndex)); // Inicializa temporário
+    printf("Hash: %d\n", hash);
+    printf("User ID: %d\n", user_id);
 
-    FILE *file = fopen(HASH_INDEX_FILE_NAME, "rb");
-    if (!file)
-    {
-        perror("Erro ao abrir o arquivo de índices");
-        return tempIndex; // Retorna índice vazio em caso de erro
-    }
-
-    int i = 0; // Contador de tentativas
+    int i = 0;
     while (1)
     {
-        fseek(file, hash * sizeof(HashIndex), SEEK_SET);
-        if (fread(&tempIndex, sizeof(HashIndex), 1, file) == 1)
+        if (hashs[hash].hash == user_id)
         {
-            if (tempIndex.hash == hash) // Verifica se o hash corresponde
-            {
-                fclose(file);
-                return tempIndex;
-            }
-        }
-        else
-        {
-            // Registro não encontrado
-            printf("Registro não encontrado para user_id: %d\n", user_id);
-            break;
+            return hashs[hash];
         }
 
-        // Próximo hash em caso de colisão
+        if (hashs[hash].hash == 0)
+        {
+            break; // Não encontrado
+        }
+
         i++;
         hash = (hash1 + i * hash2) % HASH_SIZE;
 
         if (i >= HASH_SIZE)
         {
-            printf("Erro: Tabela de hash está cheia ou registro não encontrado.\n");
             break;
         }
     }
 
-    fclose(file);
-    memset(&tempIndex, 0, sizeof(HashIndex)); // Retorna índice vazio se não encontrado
-    return tempIndex;
+    MemoryIndex notFound = {0, -1};
+    return notFound;
 }
 
-void find_evend_by_user_id(int user_id)
+void find_evend_by_user_id(int user_id, MemoryIndex *hashs)
 {
-    HashIndex index = get_hash_index(user_id);
+    MemoryIndex index = get_memory_index(user_id, hashs);
     if (index.hash == 0)
     {
         printf("Registro não encontrado para user_id: %d\n", user_id);
@@ -1818,6 +1799,17 @@ void find_evend_by_user_id(int user_id)
     printf("User ID: %d\n", event.user_id);
 
     fclose(file);
+}
+
+void readAllHashs(MemoryIndex *hashs)
+{
+    for (int i = 0; i < HASH_SIZE; i++)
+    {
+        if (hashs[i].hash != 0)
+        {
+            printf("Hash: %d, Posicao: %d\n", hashs[i].hash, hashs[i].position);
+        }
+    }
 }
 
 
@@ -1852,6 +1844,8 @@ int main()
     int prod_pesquisa = 12719154; //100028530
     
     BTree* tree = create_btree();
+    MemoryIndex *hashs = NULL; // Ponteiro para o índice em memória
+    initialize_memory_index(&hashs);
 
     do
     {
@@ -1984,7 +1978,7 @@ int main()
     		printf("Busca arvore B: %.4f s\n", tempoGastoTree1);
         case 12:
         	t = clock();
-            createHashIndexFile(EVENT_FILE_NAME);
+            createHashIndexes(EVENT_FILE_NAME, hashs);
     		t = clock() - t;
     		float tempoCriarHash = (float)(t) / CLOCKS_PER_SEC;
     		printf("Tempo gasto para criacao dos hashs: %.4f\n", tempoCriarHash);
@@ -1995,7 +1989,7 @@ int main()
             // printf("Digite o ID do usuario: ");
             // scanf("%d", &idSearch);
             // find_evend_by_user_id(idSearch);
-            find_evend_by_user_id(517167420); // 541480181 como exemplo
+            find_evend_by_user_id(517167420, hashs); // 541480181 como exemplo
             break;
         }
 
