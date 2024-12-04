@@ -12,11 +12,11 @@
 #define EVENT_IDINDEX_FILE_NAME "index_events.bin"
 #define EVENT_USER_INDEX_FILE_NAME "user_index_events.bin"
 #define ORIGINAL_FILE_NAME "2019-Nov.csv"
-//#define ORIGINAL_FILE_NAME "reducedData.csv"
+// #define ORIGINAL_FILE_NAME "reducedData.csv"
 
-#define ORDER 1024  // Ordem da Arvore B
+#define ORDER 1024 // Ordem da Arvore B
 
-#define HASH_SIZE 1000000
+#define HASH_SIZE 100000
 #define HASH_INDEX_FILE_NAME "hash_events_user_index.bin"
 
 // ordenado por id
@@ -58,14 +58,6 @@ typedef struct
     int user_id;
     int position;
 } UserIDIndex;
-
-typedef struct
-{
-    int hash;
-    int position;
-} MemoryIndex;
-
-MemoryIndex *hashs;
 
 char *strsep(char **stringp, const char *delim)
 {
@@ -856,7 +848,6 @@ void sequencialSearchProductsId(int id)
     fclose(file);
 }
 
-
 void sequencialSearchProductsPrice(float price)
 {
     FILE *file = fopen(PROD_FILE_NAME, "rb");
@@ -890,7 +881,6 @@ void sequencialSearchProductsPrice(float price)
 
     fclose(file);
 }
-
 
 //----------------------------------
 // FINAL PRODUTOS
@@ -1455,46 +1445,49 @@ int binarySearchUserIDEvents(int user_id)
 // FINAL EVENTOS
 //----------------------------------
 
-
 // ------------- Trab 2 -------------
 
-
 // Definindo a estrutura de um nó da árvore B
-typedef struct BTreeNode {
-    int num_keys;                      // Número de chaves no nó
-    int* keys;                         // Chaves do nó
-    int* values;                      // Ponteiros para os registros (endereços)
-    struct BTreeNode** children;       // Ponteiros para os filhos
-    int is_leaf;                       // 1 se for folha, 0 caso contrário
+typedef struct BTreeNode
+{
+    int num_keys;                // Número de chaves no nó
+    int *keys;                   // Chaves do nó
+    int *values;                 // Ponteiros para os registros (endereços)
+    struct BTreeNode **children; // Ponteiros para os filhos
+    int is_leaf;                 // 1 se for folha, 0 caso contrário
 } BTreeNode;
 
 // Definindo a árvore B
-typedef struct BTree {
-    BTreeNode* root;
+typedef struct BTree
+{
+    BTreeNode *root;
 } BTree;
 
 // Função para criar um nó da árvore B
-BTreeNode* create_node(int is_leaf) {
-    BTreeNode* node = (BTreeNode*)malloc(sizeof(BTreeNode));
+BTreeNode *create_node(int is_leaf)
+{
+    BTreeNode *node = (BTreeNode *)malloc(sizeof(BTreeNode));
     node->is_leaf = is_leaf;
     node->num_keys = 0;
-    node->keys = (int*)malloc(sizeof(int) * (ORDER - 1));
-    node->values = (int*)malloc(sizeof(int) * (ORDER - 1));
-    node->children = (BTreeNode**)malloc(sizeof(BTreeNode*) * ORDER);
+    node->keys = (int *)malloc(sizeof(int) * (ORDER - 1));
+    node->values = (int *)malloc(sizeof(int) * (ORDER - 1));
+    node->children = (BTreeNode **)malloc(sizeof(BTreeNode *) * ORDER);
     return node;
 }
 
 // Função para criar a árvore B
-BTree* create_btree() {
-    BTree* tree = (BTree*)malloc(sizeof(BTree));
-    tree->root = create_node(1);  // A raiz inicialmente é uma folha
+BTree *create_btree()
+{
+    BTree *tree = (BTree *)malloc(sizeof(BTree));
+    tree->root = create_node(1); // A raiz inicialmente é uma folha
     return tree;
 }
 
 // Função para dividir um nó cheio
-void split_child(BTreeNode* parent, int index) {
-    BTreeNode* full_node = parent->children[index];
-    BTreeNode* new_node = create_node(full_node->is_leaf);
+void split_child(BTreeNode *parent, int index)
+{
+    BTreeNode *full_node = parent->children[index];
+    BTreeNode *new_node = create_node(full_node->is_leaf);
 
     int mid = ORDER / 2;
 
@@ -1504,7 +1497,8 @@ void split_child(BTreeNode* parent, int index) {
 
     // Transferindo a segunda metade das chaves e filhos para o novo nó
     int i = mid + 1;
-    for (i; i < ORDER - 1; i++) {
+    for (i; i < ORDER - 1; i++)
+    {
         new_node->keys[i - (mid + 1)] = full_node->keys[i];
         new_node->values[i - (mid + 1)] = full_node->values[i];
         new_node->children[i - (mid + 1)] = full_node->children[i];
@@ -1520,12 +1514,15 @@ void split_child(BTreeNode* parent, int index) {
 }
 
 // Função para inserir no nó não cheio
-void insert_non_full(BTreeNode* node, int id, int value) {
+void insert_non_full(BTreeNode *node, int id, int value)
+{
     int i = node->num_keys - 1;
 
     // Se for uma folha, insere diretamente
-    if (node->is_leaf) {
-        while (i >= 0 && node->keys[i] > id) {
+    if (node->is_leaf)
+    {
+        while (i >= 0 && node->keys[i] > id)
+        {
             node->keys[i + 1] = node->keys[i];
             node->values[i + 1] = node->values[i];
             i--;
@@ -1534,17 +1531,22 @@ void insert_non_full(BTreeNode* node, int id, int value) {
         node->keys[i + 1] = id;
         node->values[i + 1] = value;
         node->num_keys++;
-    } else {
+    }
+    else
+    {
         // Se não for uma folha, procura o filho correto
-        while (i >= 0 && node->keys[i] > id) {
+        while (i >= 0 && node->keys[i] > id)
+        {
             i--;
         }
         i++;
 
         // Chama recursivamente para o filho
-        if (node->children[i]->num_keys == ORDER - 1) {
+        if (node->children[i]->num_keys == ORDER - 1)
+        {
             split_child(node, i);
-            if (node->keys[i] < id) {
+            if (node->keys[i] < id)
+            {
                 i++;
             }
         }
@@ -1552,14 +1554,15 @@ void insert_non_full(BTreeNode* node, int id, int value) {
     }
 }
 
-
 // Função para realizar a inserção na árvore B
-void insert(BTree* tree, int id, int value) {
-    BTreeNode* root = tree->root;
+void insert(BTree *tree, int id, int value)
+{
+    BTreeNode *root = tree->root;
 
     // Se a raiz estiver cheia, devemos dividir
-    if (root->num_keys == ORDER - 1) {
-        BTreeNode* new_root = create_node(0);  // Novo nó raiz não é folha
+    if (root->num_keys == ORDER - 1)
+    {
+        BTreeNode *new_root = create_node(0); // Novo nó raiz não é folha
         new_root->children[0] = root;
 
         // Dividindo a raiz
@@ -1572,55 +1575,60 @@ void insert(BTree* tree, int id, int value) {
 }
 
 // Função para pesquisar recursivamente em um nó
-int search_node(BTreeNode* node, int id) {
+int search_node(BTreeNode *node, int id)
+{
     int i = 0;
 
     // Procurando no nó atual a chave correspondente
-    while (i < node->num_keys && id > node->keys[i]) {
+    while (i < node->num_keys && id > node->keys[i])
+    {
         i++;
     }
 
     // Se encontramos a chave
-    if (i < node->num_keys && id == node->keys[i]) {
-        return node->values[i];  // Retorna o endereço do registro no arquivo
+    if (i < node->num_keys && id == node->keys[i])
+    {
+        return node->values[i]; // Retorna o endereço do registro no arquivo
     }
 
     // Se o nó é uma folha, a chave não existe
-    if (node->is_leaf) {
-        return (int)-1;  // Não encontrado
+    if (node->is_leaf)
+    {
+        return (int)-1; // Não encontrado
     }
 
     // Se não encontramos a chave, seguimos na subárvore
     return search_node(node->children[i], id);
 }
 
-
 // Função para inserir um produto no índice
-void insert_product_index(BTree* tree, Product* product, int file_offset) {
+void insert_product_index(BTree *tree, Product *product, int file_offset)
+{
     insert(tree, product->id, file_offset);
 }
 
 // Função para realizar a pesquisa na árvore B
-void search(BTree* tree, int id) {	
-	
-	int position = search_node(tree->root, id);
-			
-	 // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
+void search(BTree *tree, int id)
+{
+
+    int position = search_node(tree->root, id);
+
+    // quando encontrar o registro, utilizar o seek para encontrar no arquivo original de produtos pela position.
     if (position < 0)
     {
         return;
     }
 
     printf("------------------------------\n");
-    
-	FILE *file = fopen(PROD_FILE_NAME, "rb");
+
+    FILE *file = fopen(PROD_FILE_NAME, "rb");
     if (file == NULL)
     {
         perror("Erro ao abrir o arquivo de produtos");
         return;
     }
 
-    Product product;	
+    Product product;
     fseek(file, position * sizeof(Product), SEEK_SET);
 
     fread(&product, sizeof(Product), 1, file);
@@ -1632,12 +1640,11 @@ void search(BTree* tree, int id) {
     printf("Category Code: %s\n", product.category_code);
 
     fclose(file);
-	
 }
 
 // ------------- Trab 2 -------------
 
-void createBTreeIndexFile(char *filename, BTree* tree)
+void createBTreeIndexFile(char *filename, BTree *tree)
 {
     FILE *file = fopen(filename, "rb");
     if (file == NULL)
@@ -1648,10 +1655,10 @@ void createBTreeIndexFile(char *filename, BTree* tree)
 
     Product *product = (Product *)malloc(sizeof(Product));
     int totalProducts = 0;
-    
+
     while (fread(product, sizeof(Product), 1, file) == 1)
-    {    	
-		insert_product_index(tree, product, totalProducts);		   	
+    {
+        insert_product_index(tree, product, totalProducts);
         totalProducts++;
     }
 
@@ -1659,68 +1666,142 @@ void createBTreeIndexFile(char *filename, BTree* tree)
     free(product);
 }
 
-void initialize_memory_index(MemoryIndex **hashs)
+#define CAPACITY_HASH_TABLE 100 // Size of the HashTable.
+
+// Defines the HashTable item.
+typedef struct Ht_item
 {
-    *hashs = (MemoryIndex *)malloc(HASH_SIZE * sizeof(MemoryIndex));
-    if (*hashs == NULL)
+    int key;
+    int value;
+} Ht_item;
+
+// Estrutura para lista encadeada (para tratamento de colisões).
+typedef struct LinkedList
+{
+    Ht_item *item;
+    struct LinkedList *next; // Próximo nó na lista encadeada.
+} LinkedList;
+
+// Estrutura para a hash table.
+typedef struct HashTable
+{
+    LinkedList **items; // Array de ponteiros para LinkedList.
+    int size;           // Tamanho total da tabela.
+    int count;          // Contagem de itens na tabela.
+} HashTable;
+
+// Pega os últimos 2 dígitos da chave.
+int get_hash(int key)
+{
+    return key % CAPACITY_HASH_TABLE;
+}
+
+// Cria um item.
+Ht_item *create_item(int key, int value)
+{
+    Ht_item *item = (Ht_item *)malloc(sizeof(Ht_item));
+    item->key = key;
+    item->value = value; // Copia o valor para evitar problemas de ponteiros.
+    return item;
+}
+
+// Cria uma nova hash table.
+HashTable *create_table(int size)
+{
+    HashTable *table = (HashTable *)malloc(sizeof(HashTable));
+    table->size = size;
+    table->count = 0;
+    table->items = (LinkedList **)calloc(size, sizeof(LinkedList *)); // Inicializa com NULL.
+    return table;
+}
+
+// Cria um nó da lista encadeada.
+LinkedList *create_linked_list(Ht_item *item)
+{
+    LinkedList *list = (LinkedList *)malloc(sizeof(LinkedList));
+    list->item = item;
+    list->next = NULL;
+    return list;
+}
+
+// Insere um item na lista encadeada.
+void insert_to_linked_list(LinkedList **head, Ht_item *item)
+{
+    LinkedList *node = create_linked_list(item);
+    node->next = *head; // Insere no início da lista.
+    *head = node;
+}
+
+// Insere um item na hash table.
+void hash_insert(HashTable *table, int key, int file_position)
+{
+    int hash = get_hash(key);
+
+    Ht_item *item = create_item(hash, file_position);
+    LinkedList *list = table->items[hash];
+
+    if (list == NULL)
     {
-        perror("Erro ao alocar memoria");
-        exit(EXIT_FAILURE);
+        // Sem colisão: cria uma nova lista na posição hash.
+        table->items[hash] = create_linked_list(item);
     }
-	int i;
-    for (i = 0; i < HASH_SIZE; i++)
+    else
     {
-        (*hashs)[i].hash = 0; // Marca como vazio
-        (*hashs)[i].position = -1;
+        // Colisão: insere na lista existente.
+        insert_to_linked_list(&table->items[hash], item);
+    }
+
+    table->count++;
+}
+
+// Libera memória de um item.
+void free_item(Ht_item *item)
+{
+    free(item);
+}
+
+// Libera memória de uma lista encadeada.
+void free_linked_list(LinkedList *list)
+{
+    while (list != NULL)
+    {
+        LinkedList *temp = list;
+        list = list->next;
+        free_item(temp->item);
+        free(temp);
     }
 }
 
-void insert_memory_index(int user_id, int position, MemoryIndex *hashs)
+// Libera memória da hash table.
+void free_table(HashTable *table)
 {
-    int hash1 = user_id % HASH_SIZE;
-    int hash2 = 1 + (user_id % (HASH_SIZE - 1));
-    int hash = hash1;
-
-    printf("Hash: %d\n", hash);
-    printf("User ID: %d\n", user_id);
-
-    int i = 0;
-    while (1)
+    for (int i = 0; i < table->size; i++)
     {
-        if (hashs[hash].hash == 0) // Slot vazio
+        if (table->items[i] != NULL)
         {
-            hashs[hash].hash = user_id;
-            hashs[hash].position = position;
-            break;
-        }
-
-        i++;
-        hash = (hash1 + i * hash2) % HASH_SIZE;
-
-        if (i >= HASH_SIZE)
-        {
-            printf("Erro: Indice esta cheio.\n");
-            break;
+            free_linked_list(table->items[i]);
         }
     }
+    free(table->items);
+    free(table);
 }
 
-void createHashIndexes(char *filename, MemoryIndex *hashs)
+// Função para criar hashes de eventos.
+void createHashes(char *filename, HashTable *table)
 {
     FILE *file = fopen(filename, "rb");
     if (file == NULL)
     {
-        perror("Nao foi possivel abrir o arquivo");
+        perror("Não foi possível abrir o arquivo");
         return;
     }
 
     Event *event = (Event *)malloc(sizeof(Event));
     int totalEvents = 0;
-    
+
     while (fread(event, sizeof(Event), 1, file) == 1)
-    {    	
-        // Inserir no hash
-        insert_memory_index(event->user_id, totalEvents, hashs);		   	
+    {
+        hash_insert(table, event->user_id, totalEvents);
         totalEvents++;
     }
 
@@ -1728,51 +1809,73 @@ void createHashIndexes(char *filename, MemoryIndex *hashs)
     free(event);
 }
 
-MemoryIndex get_memory_index(int user_id, MemoryIndex *hashs)
+// Exibe os itens na hash table.
+void display_table(HashTable *table)
 {
-    int hash1 = user_id % HASH_SIZE;
-    int hash2 = 1 + (user_id % (HASH_SIZE - 1));
-    int hash = hash1;
-
-    printf("Hash: %d\n", hash);
-    printf("User ID: %d\n", user_id);
-
-    int i = 0;
-    while (1)
+    for (int i = 0; i < table->size; i++)
     {
-        if (hashs[hash].hash == user_id)
+        LinkedList *list = table->items[i];
+        if (list != NULL)
         {
-            return hashs[hash];
-        }
-
-        if (hashs[hash].hash == 0)
-        {
-            break; // Não encontrado
-        }
-
-        i++;
-        hash = (hash1 + i * hash2) % HASH_SIZE;
-
-        if (i >= HASH_SIZE)
-        {
-            break;
+            printf("Hash %d:\n", i);
+            while (list != NULL)
+            {
+                printf("  Key: %d, Value: %s\n", list->item->key, list->item->value);
+                list = list->next;
+            }
         }
     }
-
-    MemoryIndex notFound = {0, -1};
-    return notFound;
 }
 
-void find_evend_by_user_id(int user_id, MemoryIndex *hashs)
+void search_hash(HashTable *table, int userId, int id, const char *filename)
 {
-    MemoryIndex index = get_memory_index(user_id, hashs);
-    if (index.hash == 0)
+    int hash = get_hash(userId);           // Calcula o índice usando a função de hash.
+    LinkedList *list = table->items[hash]; // Obtém a lista encadeada na posição hash.
+
+    // Abrir o arquivo e ler o evento na posição.
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL)
     {
-        printf("Registro não encontrado para user_id: %d\n", user_id);
+        perror("Erro ao abrir o arquivo de eventos");
         return;
     }
 
-    FILE *file = fopen(EVENT_FILE_NAME, "rb");
+    while (list != NULL)
+    {
+        if (list->item->key == hash)
+        {
+            // Encontrou o item.
+            int file_position = list->item->value;
+
+            Event event;
+            fseek(file, file_position * sizeof(Event), SEEK_SET);
+            fread(&event, sizeof(Event), 1, file);
+
+            // printf("%d, id: %d\n", event.user_id, event.id);
+            if (event.id == id && event.user_id == userId)
+            {
+                // Exibe o evento.
+                printf("Encontrado:\n");
+                printf("ID: %d\n", event.id);
+                printf("Type: %s\n", event.event_type);
+                printf("Product ID: %d\n", event.product_id);
+                printf("User ID: %d\n", event.user_id);
+
+                fclose(file);
+                return;
+            }
+        }
+        list = list->next; // Vai para o próximo nó na lista encadeada.
+    }
+
+    // Se não encontrar, imprime mensagem.
+    printf("Item com UserID %d não encontrado.\n", userId);
+    fclose(file);
+}
+
+void sequentialSearchEventsId(char *filename, int id)
+{
+    FILE *file = fopen(filename, "rb");
     if (file == NULL)
     {
         perror("Erro ao abrir o arquivo de eventos");
@@ -1780,30 +1883,23 @@ void find_evend_by_user_id(int user_id, MemoryIndex *hashs)
     }
 
     Event event;
-    fseek(file, index.position * sizeof(Event), SEEK_SET);
-    fread(&event, sizeof(Event), 1, file);
 
-    printf("ID: %d\n", event.id);
-    printf("Type: %s\n", event.event_type);
-    printf("Product ID: %d\n", event.product_id);
-    printf("User ID: %d\n", event.user_id);
-
-    fclose(file);
-}
-
-void readAllHashs(MemoryIndex *hashs)
-{
-	int i;
-    for (i = 0; i < HASH_SIZE; i++)
+    while (fread(&event, sizeof(Event), 1, file) == 1)
     {
-        if (hashs[i].hash != 0)
+        if (event.id == id)
         {
-            printf("Hash: %d, Posicao: %d\n", hashs[i].hash, hashs[i].position);
+            printf("Encontrou:");
+            printf("ID: %d\n", event.id);
+            printf("Type: %s\n", event.event_type);
+            printf("Product ID: %d\n", event.product_id);
+            printf("User ID: %d\n", event.user_id);
+            return;
         }
     }
+
+    printf("Item com ID %d não encontrado.\n", id);
 }
 
-int colisoes = 0;
 void printMenu()
 {
     printf("---------------- MENU ----------------\n");
@@ -1820,7 +1916,8 @@ void printMenu()
     printf("11 -> Comparar tempo de busca nos indices por id (produto)\n");
     printf("12 -> Criar indices por Hash\n");
     printf("13 -> Buscar Evento Por Hash de User Id\n");
-    
+    printf("14 -> Pesquisa SEQUENCIAL por ID em eventos (comparacao de tempo) - CUIDADO!!!!!!!!! :0\n");
+
     printf("0 -> Sair\n");
     printf("Opcao: ");
 }
@@ -1831,12 +1928,11 @@ int main()
     int numBlocks = 0;
     int idSearch = 0;
     float priceSearch;
-    clock_t t;    
-    int prod_pesquisa = 12719154; //100028530
-    
-    BTree* tree = create_btree();
-    MemoryIndex *hashs = NULL; // Ponteiro para o Indice em memoria
-    initialize_memory_index(&hashs);
+    clock_t t;
+    int prod_pesquisa = 12719154; // 100028530
+
+    BTree *tree = create_btree();
+    HashTable *ht = create_table(CAPACITY_HASH_TABLE);
 
     do
     {
@@ -1856,12 +1952,12 @@ int main()
             {
                 printf("Nenhum bloco de produtos foi criado.\n");
             }
-            //printProductsFromFile(PROD_FILE_NAME);
+            // printProductsFromFile(PROD_FILE_NAME);
             createEventFile(ORIGINAL_FILE_NAME);
             // printEventsFromFile(EVENT_FILE_NAME);
             break;
         case 2:
-			t = clock();
+            t = clock();
             createProductsIndexFile(PROD_FILE_NAME);
             t = clock() - t;
             float tempoCriacao = (float)(t) / CLOCKS_PER_SEC;
@@ -1884,7 +1980,7 @@ int main()
                 printf("Erro ao criar os arquivos temporarios de indice.\n");
             }
 
-			t = clock();
+            t = clock();
             numBlocks = createTemporaryUserIDIndexFiles(EVENT_FILE_NAME);
             if (numBlocks > 0)
             {
@@ -1926,72 +2022,82 @@ int main()
             binarySearchUserIDEvents(518085591); // 518085591 como exemplo
             break;
         case 8:
-        	t = clock();
+            t = clock();
             binarySearchIndexProducts(100028530);
             t = clock() - t;
             float tempoGastoBinario = (float)(t) / CLOCKS_PER_SEC;
-        	t = clock();  		
-    		printf("------------------------------\n");
+            t = clock();
+            printf("------------------------------\n");
             sequencialSearchProductsId(100028530); // ultimo id do arquivo
-    		t = clock() - t;
-    		float tempoGastoSequencial = (float)(t) / CLOCKS_PER_SEC;
-    		printf("------------------------------\n");
-    		printf("--- Comparacao de tempo ---\n");
-    		printf("Busca binaria: %.4f s\n", tempoGastoBinario);
-    		printf("Busca sequencial: %.4f s\n", tempoGastoSequencial);
+            t = clock() - t;
+            float tempoGastoSequencial = (float)(t) / CLOCKS_PER_SEC;
+            printf("------------------------------\n");
+            printf("--- Comparacao de tempo ---\n");
+            printf("Busca binaria: %.4f s\n", tempoGastoBinario);
+            printf("Busca sequencial: %.4f s\n", tempoGastoSequencial);
             break;
         case 9:
-        	t = clock();
+            t = clock();
             sequencialSearchProductsPrice(411.57);
-    		t = clock() - t;
-    		float tempoGastoSeqPrice = (float)(t) / CLOCKS_PER_SEC;
-    		t = clock();
-    		binarySearchPriceProducts(411.57);
-    		t = clock() - t;    		
-    		float tempoGastoBinPrice = (float)(t) / CLOCKS_PER_SEC;    		
-    		printf("------------------------------\n");
-    		printf("--- Comparacao de tempo ---\n");
-    		printf("Busca binaria: %.4f s\n", tempoGastoBinPrice);
-    		printf("Busca sequencial: %.4f s\n", tempoGastoSeqPrice);
+            t = clock() - t;
+            float tempoGastoSeqPrice = (float)(t) / CLOCKS_PER_SEC;
+            t = clock();
+            binarySearchPriceProducts(411.57);
+            t = clock() - t;
+            float tempoGastoBinPrice = (float)(t) / CLOCKS_PER_SEC;
+            printf("------------------------------\n");
+            printf("--- Comparacao de tempo ---\n");
+            printf("Busca binaria: %.4f s\n", tempoGastoBinPrice);
+            printf("Busca sequencial: %.4f s\n", tempoGastoSeqPrice);
             break;
         case 10:
-        	t = clock();
+            t = clock();
             createBTreeIndexFile(PROD_FILE_NAME, tree);
-    		t = clock() - t;
-    		float tempoGastoCriarArvore = (float)(t) / CLOCKS_PER_SEC;
-    		printf("Tempo gasto para criacao da arvore B: %.4f\n", tempoGastoCriarArvore);
-        	break;
+            t = clock() - t;
+            float tempoGastoCriarArvore = (float)(t) / CLOCKS_PER_SEC;
+            printf("Tempo gasto para criacao da arvore B: %.4f\n", tempoGastoCriarArvore);
+            break;
         case 11:
-			t = clock();
+            t = clock();
             binarySearchIndexProducts(prod_pesquisa);
-    		t = clock() - t;
-    		float tempoGastoBin1 = (float)(t) / CLOCKS_PER_SEC;
-    		t = clock();
-    		search(tree, prod_pesquisa);
-    		t = clock() - t;    		
-    		float tempoGastoTree1 = (float)(t) / CLOCKS_PER_SEC;    
-        	printf("------------------------------\n");
-    		printf("--- Comparacao de tempo ---\n");
-    		printf("Busca binaria (arquivo): %.4f s\n", tempoGastoBin1);
-    		printf("Busca arvore B: %.4f s\n", tempoGastoTree1);
+            t = clock() - t;
+            float tempoGastoBin1 = (float)(t) / CLOCKS_PER_SEC;
+            t = clock();
+            search(tree, prod_pesquisa);
+            t = clock() - t;
+            float tempoGastoTree1 = (float)(t) / CLOCKS_PER_SEC;
+            printf("------------------------------\n");
+            printf("--- Comparacao de tempo ---\n");
+            printf("Busca binaria (arquivo): %.4f s\n", tempoGastoBin1);
+            printf("Busca arvore B: %.4f s\n", tempoGastoTree1);
         case 12:
-        	t = clock();
-            createHashIndexes(EVENT_FILE_NAME, hashs);
-    		t = clock() - t;
-    		float tempoCriarHash = (float)(t) / CLOCKS_PER_SEC;
-    		printf("Tempo gasto para criacao dos hashs: %.4f\n", tempoCriarHash);
-    		printf("colisoes: %d\n", colisoes);
-            colisoes = 0;
-        	break;
+            t = clock();
+            createHashes(EVENT_FILE_NAME, ht);
+            // hash_function(520934632);
+            t = clock() - t;
+            float tempoCriarHash = (float)(t) / CLOCKS_PER_SEC;
+            printf("Tempo gasto para criacao dos hashs: %.4f\n", tempoCriarHash);
+            // printf("colisoes: %d\n", colisoes);
+            // colisoes = 0;
+            break;
         case 13:
             // printf("Digite o ID do usuario: ");
             // scanf("%d", &idSearch);
+            // print_search(ht, 564239250);
+            // display_table(ht);
+            search_hash(ht, 566294920, 42864, EVENT_FILE_NAME);
             // find_evend_by_user_id(idSearch);
-            find_evend_by_user_id(517167420, hashs); // 541480181 como exemplo
+            // find_evend_by_user_id(517167420, hashs); // 541480181 como exemplo
             break;
+        case 14:
+            sequentialSearchEventsId(EVENT_FILE_NAME, 428633214);
         }
 
     } while (opc != 0);
+
+    free(tree);
+    // free_table(ht);
+    free(ht);
 
     return 0;
 }
