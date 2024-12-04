@@ -4,19 +4,19 @@
 #include <time.h>
 
 // blocos com tamanho de 10000 registros (para arq. indices)
-#define BLOCK_SIZE 10000
+#define BLOCK_SIZE 1000000
 #define PROD_FILE_NAME "sorted_products.bin"
 #define PROD_IDINDEX_FILE_NAME "index_products.bin"
 #define PROD_PRICE_INDEX_FILE_NAME "price_index_products.bin"
 #define EVENT_FILE_NAME "sorted_events.bin"
 #define EVENT_IDINDEX_FILE_NAME "index_events.bin"
 #define EVENT_USER_INDEX_FILE_NAME "user_index_events.bin"
-//#define ORIGINAL_FILE_NAME "2019-Nov.csv"
-#define ORIGINAL_FILE_NAME "reducedData.csv"
+#define ORIGINAL_FILE_NAME "2019-Nov.csv"
+//#define ORIGINAL_FILE_NAME "reducedData.csv"
 
-#define ORDER 128  // Ordem da árvore B
+#define ORDER 1024  // Ordem da Arvore B
 
-#define HASH_SIZE 10000000
+#define HASH_SIZE 1000000
 #define HASH_INDEX_FILE_NAME "hash_events_user_index.bin"
 
 // ordenado por id
@@ -483,7 +483,7 @@ int createTemporaryPriceIndexFiles(char *filename)
     // Ler o arquivo de produtos em blocos
     while (fread(&product, sizeof(Product), 1, file) == 1)
     {
-        // Preencher o array de ï¿½ndices com o campo price e a posiï¿½ï¿½o
+        // Preencher o array de ï¿½ndices com o campo price e a posicao
         indexArray[indexCount].price = product.price;
         indexArray[indexCount].position = position++;
         indexCount++;
@@ -1664,11 +1664,11 @@ void initialize_memory_index(MemoryIndex **hashs)
     *hashs = (MemoryIndex *)malloc(HASH_SIZE * sizeof(MemoryIndex));
     if (*hashs == NULL)
     {
-        perror("Erro ao alocar memória");
+        perror("Erro ao alocar memoria");
         exit(EXIT_FAILURE);
     }
-
-    for (int i = 0; i < HASH_SIZE; i++)
+	int i;
+    for (i = 0; i < HASH_SIZE; i++)
     {
         (*hashs)[i].hash = 0; // Marca como vazio
         (*hashs)[i].position = -1;
@@ -1699,7 +1699,7 @@ void insert_memory_index(int user_id, int position, MemoryIndex *hashs)
 
         if (i >= HASH_SIZE)
         {
-            printf("Erro: Índice está cheio.\n");
+            printf("Erro: Indice esta cheio.\n");
             break;
         }
     }
@@ -1793,7 +1793,8 @@ void find_evend_by_user_id(int user_id, MemoryIndex *hashs)
 
 void readAllHashs(MemoryIndex *hashs)
 {
-    for (int i = 0; i < HASH_SIZE; i++)
+	int i;
+    for (i = 0; i < HASH_SIZE; i++)
     {
         if (hashs[i].hash != 0)
         {
@@ -1818,7 +1819,7 @@ void printMenu()
     printf("10 -> Criar arvore B de indice (id do produto)\n");
     printf("11 -> Comparar tempo de busca nos indices por id (produto)\n");
     printf("12 -> Criar indices por Hash\n");
-    printf("13 -> BUscar Evento Por Hash de User Id\n");
+    printf("13 -> Buscar Evento Por Hash de User Id\n");
     
     printf("0 -> Sair\n");
     printf("Opcao: ");
@@ -1834,7 +1835,7 @@ int main()
     int prod_pesquisa = 12719154; //100028530
     
     BTree* tree = create_btree();
-    MemoryIndex *hashs = NULL; // Ponteiro para o índice em memória
+    MemoryIndex *hashs = NULL; // Ponteiro para o Indice em memoria
     initialize_memory_index(&hashs);
 
     do
@@ -1860,11 +1861,14 @@ int main()
             // printEventsFromFile(EVENT_FILE_NAME);
             break;
         case 2:
-
+			t = clock();
             createProductsIndexFile(PROD_FILE_NAME);
+            t = clock() - t;
+            float tempoCriacao = (float)(t) / CLOCKS_PER_SEC;
             printIndexFile(PROD_IDINDEX_FILE_NAME);
             createEventsIndexFile(EVENT_FILE_NAME);
             // printIndexFile(EVENT_IDINDEX_FILE_NAME);
+            printf("\nTempo para criacao do arquivo de indice por chave de ordenacao (produtos): %.4f\n", tempoCriacao);
 
             break;
         case 3:
@@ -1880,6 +1884,7 @@ int main()
                 printf("Erro ao criar os arquivos temporarios de indice.\n");
             }
 
+			t = clock();
             numBlocks = createTemporaryUserIDIndexFiles(EVENT_FILE_NAME);
             if (numBlocks > 0)
             {
@@ -1892,6 +1897,9 @@ int main()
                 printf("Erro ao criar os arquivos temporarios de indice.\n");
             }
 
+            t = clock() - t;
+            float tempoCriacao2 = (float)(t) / CLOCKS_PER_SEC;
+            printf("\nTempo para criacao do arquivo de indice por user_id (eventos): %.4f\n", tempoCriacao2);
             break;
         case 4:
             // printf("Digite o ID do produto: ");
@@ -1972,7 +1980,7 @@ int main()
     		t = clock() - t;
     		float tempoCriarHash = (float)(t) / CLOCKS_PER_SEC;
     		printf("Tempo gasto para criacao dos hashs: %.4f\n", tempoCriarHash);
-    		printf("colisões: %d\n", colisoes);
+    		printf("colisoes: %d\n", colisoes);
             colisoes = 0;
         	break;
         case 13:
